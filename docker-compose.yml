@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # Base de données MongoDB
+  mongodb:
+    image: mongo:7
+    container_name: feveo2050-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: feveo2050
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - feveo2050-network
+
+  # Cache Redis (optionnel)
+  redis:
+    image: redis:7-alpine
+    container_name: feveo2050-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - feveo2050-network
+
+  # Application Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: feveo2050-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/feveo2050?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: feveo2050_jwt_secret_super_securise_pour_developpement
+      JWT_EXPIRE: 30d
+      BCRYPT_ROUNDS: 12
+      FRONTEND_URL: http://localhost:3000
+    volumes:
+      - ./src:/app/src:ro
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - feveo2050-network
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Interface d'administration MongoDB (optionnel)
+  mongo-express:
+    image: mongo-express:1.0.0-20
+    container_name: feveo2050-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      - mongodb
+    networks:
+      - feveo2050-network
+
+# Volumes persistants
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Réseau pour la communication inter-services
+networks:
+  feveo2050-network:
+    driver: bridge

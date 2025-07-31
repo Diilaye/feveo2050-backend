@@ -1,0 +1,28 @@
+{
+  "name": "feveo-gie-tests",
+  "version": "1.0.0",
+  "description": "Tests API pour la création de GIE dans FEVEO",
+  "main": "test-gie-creation.js",
+  "scripts": {
+    "test": "node test-gie-creation.js",
+    "test:simple": "node test-gie-simple.js",
+    "test:invalid": "node -e \"require('./test-gie-creation.js').testInvalidGIECreation()\"",
+    "dev": "nodemon test-gie-creation.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "feveo",
+    "gie",
+    "api",
+    "test",
+    "nodejs"
+  ],
+  "author": "FEVEO Team",
+  "license": "MIT"
+}

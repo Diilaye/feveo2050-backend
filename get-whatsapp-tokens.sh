@@ -1,0 +1,62 @@
+#!/bin/bash
+
+echo "🚀 FEVEO 2050 - Récupération Token WhatsApp"
+echo "============================================="
+echo ""
+echo "📋 Informations de votre App :"
+echo "   • App ID: 1500316664676674"
+echo "   • Business ID: 1129220308584592"
+echo ""
+echo "🔗 URLs importantes :"
+echo ""
+echo "1️⃣ Dashboard Principal :"
+echo "   https://developers.facebook.com/apps/1500316664676674/dashboard/?business_id=1129220308584592"
+echo ""
+echo "2️⃣ Configuration WhatsApp :"
+echo "   https://developers.facebook.com/apps/1500316664676674/whatsapp-business/wa-settings/"
+echo ""
+echo "3️⃣ Paramètres de Base (pour App Secret) :"
+echo "   https://developers.facebook.com/apps/1500316664676674/settings/basic/"
+echo ""
+echo "🔧 Instructions :"
+echo ""
+echo "ÉTAPE 1 - Récupérer l'App Secret :"
+echo "   1. Cliquez sur le lien 'Paramètres de Base' ci-dessus"
+echo "   2. Trouvez 'Clé secrète de l'app'"
+echo "   3. Cliquez sur 'Afficher' et copiez"
+echo "   4. Ajoutez dans .env : WHATSAPP_APP_SECRET=votre_secret"
+echo ""
+echo "ÉTAPE 2 - Récupérer un Nouveau Token :"
+echo "   1. Cliquez sur le lien 'Configuration WhatsApp' ci-dessus"
+echo "   2. Allez dans 'Configuration API'"
+echo "   3. Section 'Token d'accès' → 'Générer le token'"
+echo "   4. Copiez le nouveau token"
+echo "   5. Remplacez dans .env : WHATSAPP_ACCESS_TOKEN=nouveau_token"
+echo ""
+echo "ÉTAPE 3 - Tester :"
+echo "   1. Redémarrez le serveur : npm start"
+echo "   2. Testez : node test-auto-token.js"
+echo ""
+
+# Fonction pour ouvrir les URLs sur macOS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "🌐 Voulez-vous ouvrir les URLs dans votre navigateur ? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        echo "📂 Ouverture des onglets..."
+        open "https://developers.facebook.com/apps/1500316664676674/settings/basic/"
+        sleep 2
+        open "https://developers.facebook.com/apps/1500316664676674/whatsapp-business/wa-settings/"
+        echo "✅ URLs ouvertes dans votre navigateur"
+    fi
+fi
+
+echo ""
+echo "💡 Après configuration, votre .env devrait contenir :"
+echo "   WHATSAPP_APP_ID=1500316664676674"
+echo "   WHATSAPP_APP_SECRET=votre_app_secret"
+echo "   WHATSAPP_BUSINESS_ID=1129220308584592"
+echo "   WHATSAPP_PHONE_NUMBER_ID=658687160670733"
+echo "   WHATSAPP_ACCESS_TOKEN=nouveau_token"
+echo ""
+echo "🔄 Le système gérera ensuite automatiquement le renouvellement !"

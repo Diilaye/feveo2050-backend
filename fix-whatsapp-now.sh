@@ -1,0 +1,45 @@
+#!/bin/bash
+
+echo "🚨 TOKEN WHATSAPP EXPIRÉ - SOLUTION RAPIDE"
+echo "========================================="
+echo ""
+echo "❌ PROBLÈME DÉTECTÉ:"
+echo "   • Token WhatsApp expiré le 26 juillet 2025"
+echo "   • App Secret manquant"
+echo ""
+echo "🎯 SOLUTION IMMÉDIATE (2 minutes):"
+echo ""
+echo "1️⃣ RÉCUPÉRER UN NOUVEAU TOKEN:"
+echo "   → Ouvrir: https://developers.facebook.com/apps/1500316664676674/whatsapp-business/wa-settings/"
+echo "   → Aller dans 'Configuration API'"
+echo "   → Cliquer 'Générer le token' (durée: 60 jours recommandée)"
+echo "   → COPIER le nouveau token"
+echo ""
+echo "2️⃣ METTRE À JOUR LE FICHIER .env:"
+echo "   → Ouvrir: /Users/diikaanedev/Documents/feveo-projet/back/.env"
+echo "   → Remplacer la ligne WHATSAPP_ACCESS_TOKEN par le nouveau token"
+echo ""
+echo "3️⃣ REDÉMARRER ET TESTER:"
+echo "   → npm start"
+echo "   → node test-whatsapp.js"
+echo ""
+
+# Proposer d'ouvrir directement l'URL
+echo "🌐 Ouvrir l'URL de configuration WhatsApp maintenant ? (y/n)"
+read -r response
+if [[ "$response" =~ ^[Yy]$ ]]; then
+    echo "📂 Ouverture de la console WhatsApp..."
+    open "https://developers.facebook.com/apps/1500316664676674/whatsapp-business/wa-settings/"
+    echo "✅ Console ouverte - Générez votre nouveau token"
+fi
+
+echo ""
+echo "⚡ ALTERNATIVE RAPIDE - MODE DEV:"
+echo "   Le système fonctionne déjà en mode fallback"
+echo "   Les codes de vérification s'affichent dans les logs"
+echo "   Vous pouvez continuer le développement sans bloquer"
+echo ""
+echo "💡 APRÈS MISE À JOUR DU TOKEN:"
+echo "   → Le système passera automatiquement en mode WhatsApp"
+echo "   → Plus de messages dans les logs, envoi réel"
+echo "   → Renouvellement automatique activé"
