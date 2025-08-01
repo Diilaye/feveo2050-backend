@@ -152,3 +152,5 @@ cache/
 # Local configuration
 config/local.json
 config/local.js
+
+.env
