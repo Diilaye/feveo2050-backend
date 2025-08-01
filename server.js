@@ -27,33 +27,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Configuration CORS
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
+// Configuration CORS - Autoriser toutes les origines
 app.use(cors({
-  origin: function (origin, callback) {
-    // Autoriser les requêtes sans origin (comme les appels mobiles ou Postman)
-    if (!origin) return callback(null, true);
-    
-    // En développement, autoriser localhost sur n'importe quel port
-    if (process.env.NODE_ENV !== 'production' && 
-        (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS: Origin non autorisée: ${origin}`);
-      callback(new Error('Non autorisé par la politique CORS'));
-    }
-  },
+  origin: true, // Autoriser toutes les origines
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
