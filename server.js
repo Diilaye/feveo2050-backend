@@ -19,6 +19,9 @@ const paymentRoutes = require('./src/routes/payments');
 
 const app = express();
 
+// Configuration du trust proxy pour Apache
+app.set('trust proxy', 1); // Trust first proxy (Apache)
+
 // Connexion à la base de données
 connectDB();
 
@@ -45,7 +48,19 @@ const limiter = rateLimit({
     message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Configuration optimisée pour Apache
+  skip: (req) => {
+    // Skip rate limiting pour les health checks et requêtes internes
+    return req.path === '/health' || req.path === '/api/test';
+  },
+  keyGenerator: (req) => {
+    // Priorité aux headers Apache standard
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+           req.headers['x-real-ip'] || 
+           req.connection.remoteAddress || 
+           req.ip;
+  }
 });
 
 app.use(limiter);
@@ -66,7 +81,9 @@ app.get('/health', (req, res) => {
     message: 'API FEVEO 2050 - Serveur opérationnel',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    server: 'Apache + Node.js',
+    ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip
   });
 });
 
@@ -149,7 +166,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3051;
 
 const server = app.listen(PORT, () => {
   console.log(`
@@ -161,6 +178,7 @@ const server = app.listen(PORT, () => {
    🔗 URL: http://localhost:${PORT}
    🏥 Health check: http://localhost:${PORT}/health
    🧪 Test API: http://localhost:${PORT}/api/test
+   🌐 Production: https://api.feveo2025.sn
    📚 Documentation: En cours de développement
 ===============================================
   `);
