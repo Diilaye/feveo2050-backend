@@ -30,14 +30,36 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Configuration CORS - Autoriser toutes les origines
+// Configuration CORS - Autoriser toutes les origines avec configuration explicite
 app.use(cors({
-  origin: true, // Autoriser toutes les origines
+  origin: function(origin, callback) {
+    // Autoriser toutes les origines en développement et production
+    callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200 // Pour supporter les anciens navigateurs
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Requested-With'],
+  optionsSuccessStatus: 200, // Pour supporter les anciens navigateurs
+  preflightContinue: false
 }));
+
+// Middleware OPTIONS explicite pour gérer les requêtes preflight
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
 
 // Limitation du taux de requêtes
 const limiter = rateLimit({
@@ -76,6 +98,10 @@ if (process.env.NODE_ENV === 'development') {
 
 // Health check
 app.get('/health', (req, res) => {
+  // Headers CORS explicites pour le health check
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   res.json({
     success: true,
     message: 'API FEVEO 2050 - Serveur opérationnel',
@@ -83,7 +109,8 @@ app.get('/health', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV,
     server: 'Apache + Node.js',
-    ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip
+    ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+    cors: 'enabled'
   });
 });
 
@@ -98,6 +125,10 @@ app.use('/api/payments', paymentRoutes);
 
 // Route de test
 app.get('/api/test', (req, res) => {
+  // Headers CORS explicites
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   res.json({
     success: true,
     message: 'API FEVEO 2050 fonctionne correctement!',
@@ -108,7 +139,9 @@ app.get('/api/test', (req, res) => {
       'Wallet GIE',
       'Authentification JWT',
       'Validation des données'
-    ]
+    ],
+    cors: 'Configuration CORS active',
+    timestamp: new Date().toISOString()
   });
 });
 
