@@ -185,6 +185,19 @@ const gieSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     }
+  },
+
+  // Code de connexion temporaire pour authentification
+  codeConnexionTemporaire: {
+    code: {
+      type: String
+    },
+    dateExpiration: {
+      type: Date
+    },
+    numeroTelephone: {
+      type: String
+    }
   }
 }, {
   timestamps: true

@@ -19,7 +19,7 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Créer un utilisateur non-root pour la sécurité
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
+RUN adduser -S nextjs -u 1001
 
 # Copier le code source
 COPY --chown=nextjs:nodejs . .

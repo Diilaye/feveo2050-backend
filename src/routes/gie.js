@@ -7,7 +7,10 @@ const {
   updateGIE,
   deleteGIE,
   getGIEStats,
-  getNextProtocol
+  getNextProtocol,
+  envoyerCodeConnexionGIE,
+  verifierCodeConnexionGIE,
+  getStatsPubliques
 } = require('../controllers/gieController');
 const {
   validateGIE
@@ -19,6 +22,18 @@ const {
   requireGIEAccess
 } = require('../middleware/auth');
 
+// Routes publiques (doivent être avant les routes avec auth)
+// @route   GET /api/gie/stats-publiques
+// @desc    Obtenir les statistiques publiques des GIEs
+// @access  Public
+router.get('/stats-publiques', getStatsPubliques);
+
+// @route   POST /api/gie/verifier-code-connexion
+// @desc    Vérifier code de connexion GIE
+// @access  Public
+router.post('/verifier-code-connexion', verifierCodeConnexionGIE);
+
+// Routes avec authentification
 // @route   POST /api/gie
 // @desc    Créer un nouveau GIE
 // @access  Private
@@ -53,5 +68,10 @@ router.put('/:id', auth, requireGIEAccess, requirePermission('gestion_gie'), upd
 // @desc    Supprimer un GIE
 // @access  Private (Admin seulement)
 router.delete('/:id', auth, requireRole('admin'), deleteGIE);
+
+// @route   POST /api/gie/envoyer-code-connexion
+// @desc    Envoyer code de connexion GIE
+// @access  Private
+router.post('/envoyer-code-connexion', auth, requirePermission('gestion_gie'), envoyerCodeConnexionGIE);
 
 module.exports = router;

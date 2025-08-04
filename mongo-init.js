@@ -1,10 +1,24 @@
 // Script d'initialisation MongoDB pour Docker
 // Ce script s'exécute automatiquement lors du premier démarrage du conteneur MongoDB
 
-print('🚀 Initialisation de la base de données FEVEO 2050...');
+const { MongoClient } = require('mongodb');
+require('dotenv').config();
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/feveo2050?authSource=admin';
+
+ console.log('🚀 Connexion à MongoDB...');
+    await client.connect();
+    
+    const db = client.db('feveo2050');
+
+console.log('🚀 Initialisation de la base de données FEVEO 2050...');
 
 // Créer la base de données feveo2050
 db = db.getSiblingDB('feveo2050');
+
+const client = new MongoClient(MONGODB_URI);
+
+
 
 // Créer un utilisateur pour l'application
 db.createUser({
@@ -24,12 +38,12 @@ db.createCollection('gies');
 db.createCollection('adhesions');
 db.createCollection('cycleinvestissements');
 
-print('✅ Base de données FEVEO 2050 initialisée avec succès!');
+console.log('✅ Base de données FEVEO 2050 initialisée avec succès!');
 
 // Insérer quelques données de test si on est en développement
 if (process.env.NODE_ENV !== 'production') {
-  print('🔧 Insertion des données de test...');
-  
+  console.log('🔧 Insertion des données de test...');
+
   // Insérer un utilisateur admin de test
   db.utilisateurs.insertOne({
     nom: 'Admin',
@@ -42,5 +56,5 @@ if (process.env.NODE_ENV !== 'production') {
     updatedAt: new Date()
   });
   
-  print('✅ Données de test insérées!');
+  console.log('✅ Données de test insérées!');
 }

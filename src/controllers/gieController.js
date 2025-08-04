@@ -1,6 +1,7 @@
 const GIE = require('../models/GIE');
 const Adhesion = require('../models/Adhesion');
 const CycleInvestissement = require('../models/CycleInvestissement');
+const messagingService = require('../services/messagingService');
 
 // @desc    Créer un nouveau GIE
 // @route   POST /api/gie
@@ -42,6 +43,23 @@ const createGIE = async (req, res) => {
     });
     cycleInvestissement.genererCalendrier();
     await cycleInvestissement.save();
+
+    // Envoi de la notification de création via messaging
+    try {
+      if (gie.presidenteTelephone) {
+        console.log(`Envoi notification création GIE à ${gie.presidenteTelephone}`);
+        const messagingResult = await messagingService.envoyerNotificationCreationGIE(
+          gie.presidenteTelephone,
+          gie.nomGIE,
+          gie.identifiantGIE
+        );
+        
+        console.log('Résultat envoi notification:', messagingResult);
+      }
+    } catch (messagingError) {
+      console.error('Erreur envoi notification création GIE:', messagingError.message);
+      // Ne pas bloquer la création du GIE en cas d'échec d'envoi du message
+    }
 
     res.status(201).json({
       success: true,
@@ -384,6 +402,247 @@ const getNextProtocol = async (req, res) => {
   }
 };
 
+// @desc    Envoyer code de connexion GIE
+// @route   POST /api/gie/envoyer-code-connexion
+// @access  Private
+const envoyerCodeConnexionGIE = async (req, res) => {
+  try {
+    const { identifiantGIE, phoneNumber } = req.body;
+
+    if (!identifiantGIE) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identifiant GIE requis'
+      });
+    }
+
+    // Rechercher le GIE
+    const gie = await GIE.findOne({ 
+      $or: [
+        { identifiantGIE },
+        { _id: identifiantGIE }
+      ]
+    });
+
+    if (!gie) {
+      return res.status(404).json({
+        success: false,
+        message: 'GIE non trouvé'
+      });
+    }
+
+    // Utiliser le numéro fourni ou celui de la présidente
+    const numeroDestination = phoneNumber || gie.presidenteTelephone;
+
+    if (!numeroDestination) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun numéro de téléphone disponible'
+      });
+    }
+
+    // Générer un code à 6 chiffres
+    const codeConnexion = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Stocker le code temporairement (expire après 15 minutes)
+    gie.codeConnexionTemporaire = {
+      code: codeConnexion,
+      dateExpiration: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      numeroTelephone: numeroDestination
+    };
+    await gie.save();
+
+    // Envoyer le code via messaging service
+    const messagingResult = await messagingService.envoyerCodeConnexionGIE(
+      numeroDestination,
+      codeConnexion,
+      gie.nomGIE
+    );
+
+    res.json({
+      success: true,
+      message: 'Code de connexion envoyé',
+      data: {
+        gieId: gie._id,
+        nomGIE: gie.nomGIE,
+        numeroDestination,
+        codeEnvoye: true,
+        messagingResult: {
+          success: messagingResult.success,
+          methodsUsed: messagingResult.methodsUsed,
+          allMethodsFailed: messagingResult.allMethodsFailed
+        },
+        expirationCode: gie.codeConnexionTemporaire.dateExpiration
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur envoi code connexion GIE:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'envoi du code de connexion',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Vérifier code de connexion GIE
+// @route   POST /api/gie/verifier-code-connexion
+// @access  Public
+const verifierCodeConnexionGIE = async (req, res) => {
+  try {
+    const { identifiantGIE, code, phoneNumber } = req.body;
+
+    if (!identifiantGIE || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identifiant GIE et code requis'
+      });
+    }
+
+    // Rechercher le GIE
+    const gie = await GIE.findOne({ 
+      $or: [
+        { identifiantGIE },
+        { _id: identifiantGIE }
+      ]
+    });
+
+    if (!gie) {
+      return res.status(404).json({
+        success: false,
+        message: 'GIE non trouvé'
+      });
+    }
+
+    // Vérifier si un code temporaire existe
+    if (!gie.codeConnexionTemporaire) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun code de connexion en attente'
+      });
+    }
+
+    // Vérifier l'expiration
+    if (new Date() > gie.codeConnexionTemporaire.dateExpiration) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code de connexion expiré'
+      });
+    }
+
+    // Vérifier le code
+    if (gie.codeConnexionTemporaire.code !== code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code de connexion invalide'
+      });
+    }
+
+    // Vérifier le numéro de téléphone si fourni
+    if (phoneNumber && gie.codeConnexionTemporaire.numeroTelephone !== phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone non autorisé'
+      });
+    }
+
+    // Code valide - nettoyer le code temporaire
+    gie.codeConnexionTemporaire = undefined;
+    await gie.save();
+
+    res.json({
+      success: true,
+      message: 'Code de connexion valide',
+      data: {
+        gieId: gie._id,
+        nomGIE: gie.nomGIE,
+        identifiantGIE: gie.identifiantGIE,
+        connecte: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur vérification code connexion GIE:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification du code',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Obtenir les statistiques publiques des GIEs
+// @route   GET /api/gie/stats-publiques
+// @access  Public
+const getStatsPubliques = async (req, res) => {
+  try {
+    // Compter le nombre total de GIEs
+    const totalGIEs = await GIE.countDocuments();
+
+    // Compter les GIEs par région
+    const giesParRegion = await GIE.aggregate([
+      {
+        $group: {
+          _id: '$region',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Compter les GIEs par secteur
+    const giesParSecteur = await GIE.aggregate([
+      {
+        $group: {
+          _id: '$secteurPrincipal',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Calculer le nombre total de membres (approximatif)
+    const totalMembres = totalGIEs * 40; // Chaque GIE a 40 membres
+
+    // Estimation des différentes catégories basée sur les règles FEVEO 2050
+    const estimationFemmes = Math.floor(totalMembres * 0.625); // 62.5% minimum
+    const estimationJeunes = Math.floor(totalMembres * 0.3);   // 30% des jeunes
+    const estimationAdultes = Math.floor(totalMembres * 0.175); // Reste adultes hommes
+
+    // Calculer les jours d'investissement (chaque GIE investit pendant 1826 jours sur 5 ans)
+    const joursInvestissement = totalGIEs * 1826;
+
+    res.json({
+      success: true,
+      message: 'Statistiques publiques FEVEO 2050',
+      data: {
+        totalGIEs,
+        totalMembres,
+        estimations: {
+          femmes: estimationFemmes,
+          jeunes: estimationJeunes,
+          adultes: estimationAdultes
+        },
+        joursInvestissement,
+        repartition: {
+          regions: giesParRegion,
+          secteurs: giesParSecteur
+        },
+        derniereMiseAJour: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération stats publiques:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des statistiques',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createGIE,
   getAllGIE,
@@ -391,5 +650,8 @@ module.exports = {
   updateGIE,
   deleteGIE,
   getGIEStats,
-  getNextProtocol
+  getNextProtocol,
+  envoyerCodeConnexionGIE,
+  verifierCodeConnexionGIE,
+  getStatsPubliques
 };

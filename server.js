@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const connectDB = require('./src/config/database');
@@ -15,6 +14,9 @@ const investissementRoutes = require('./src/routes/investissements');
 const walletRoutes = require('./src/routes/wallet');
 const paiementRoutes = require('./src/routes/paiements');
 const paymentRoutes = require('./src/routes/payments');
+const twilioTestRoutes = require('./src/routes/twilio-test');
+const whatsappTestRoutes = require('./src/routes/whatsapp-test');
+const messagingTestRoutes = require('./src/routes/messaging-test');
 
 
 const app = express();
@@ -61,32 +63,6 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Limitation du taux de requêtes
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limite chaque IP à 100 requêtes par windowMs
-  message: {
-    success: false,
-    message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Configuration optimisée pour Apache
-  skip: (req) => {
-    // Skip rate limiting pour les health checks et requêtes internes
-    return req.path === '/health' || req.path === '/api/test';
-  },
-  keyGenerator: (req) => {
-    // Priorité aux headers Apache standard
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-           req.headers['x-real-ip'] || 
-           req.connection.remoteAddress || 
-           req.ip;
-  }
-});
-
-app.use(limiter);
-
 // Middleware de parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -122,6 +98,10 @@ app.use('/api/investissements', investissementRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/paiements', paiementRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/twilio', twilioTestRoutes);
+app.use('/api/whatsapp', whatsappTestRoutes);
+app.use('/api/messaging', messagingTestRoutes);
+app.use('/api/whatsapp', whatsappTestRoutes);
 
 // Route de test
 app.get('/api/test', (req, res) => {
