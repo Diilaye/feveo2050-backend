@@ -44,10 +44,10 @@ check_nodejs() {
 check_backend() {
     print_status "Vérification du serveur backend..."
     
-    if curl -s http://localhost:5000/api/health &> /dev/null; then
+    if curl -s http://localhost:4320/api/health &> /dev/null; then
         print_success "Serveur backend accessible"
     else
-        print_warning "Le serveur backend ne semble pas accessible sur http://localhost:5000"
+        print_warning "Le serveur backend ne semble pas accessible sur http://localhost:4320"
         print_warning "Assurez-vous qu'il est démarré avant de lancer les tests"
         read -p "Continuer quand même ? (y/N): " -n 1 -r
         echo

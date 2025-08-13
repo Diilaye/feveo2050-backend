@@ -13,7 +13,7 @@ const membreSchema = new mongoose.Schema({
   },
   fonction: {
     type: String,
-    enum: ['Présidente', 'Vice-Présidente', 'Secrétaire', 'Trésorière', 'Membre'],
+    enum: ['Présidente', 'Secrétaire', 'Trésorière', 'Membre'],
     default: 'Membre'
   },
   cin: {
@@ -59,7 +59,6 @@ const gieSchema = new mongoose.Schema({
   numeroProtocole: {
     type: String,
     required: true,
-    unique: true,
     match: /^\d{3}$/
   },
   
@@ -187,6 +186,13 @@ const gieSchema = new mongoose.Schema({
     }
   },
 
+  // Statut d'enregistrement du GIE
+  statutEnregistrement: {
+    type: String,
+    enum: ['en_attente_paiement', 'valide', 'rejete', 'suspendu'],
+    default: 'en_attente_paiement'
+  },
+
   // Code de connexion temporaire pour authentification
   codeConnexionTemporaire: {
     code: {
@@ -212,21 +218,37 @@ gieSchema.index({ numeroProtocole: 1 });
 gieSchema.pre('save', function(next) {
   const totalMembres = this.membres.length + 1; // +1 pour la présidente
   
-  if (totalMembres !== 40) {
-    return next(new Error('Le GIE doit avoir exactement 40 membres (incluant la présidente)'));
+  // Vérifier le nombre minimum de membres (3 minimum)
+  if (totalMembres < 3) {
+    return next(new Error('Le GIE doit avoir au minimum 3 membres (incluant la présidente)'));
   }
   
-  // Compter la composition
-  const femmes = this.membres.filter(m => m.genre === 'femme').length + 1; // +1 présidente
-  const jeunes = this.membres.filter(m => m.genre === 'jeune').length;
-  const hommes = this.membres.filter(m => m.genre === 'homme').length;
+  // Vérifier les rôles obligatoires dans les membres
+  const secretaire = this.membres.find(m => m.fonction === 'Secrétaire');
+  const tresoriere = this.membres.find(m => m.fonction === 'Trésorière');
   
-  // Vérifier les règles FEVEO 2050
-  const option1Valid = femmes === 40; // 100% femmes
-  const option2Valid = femmes >= 25 && jeunes === 12 && hommes <= 3; // Composition mixte
+  if (!secretaire) {
+    return next(new Error('Le GIE doit avoir une Secrétaire parmi ses membres'));
+  }
   
-  if (!option1Valid && !option2Valid) {
-    return next(new Error('Composition des membres non conforme aux règles FEVEO 2050'));
+  if (!tresoriere) {
+    return next(new Error('Le GIE doit avoir une Trésorière parmi ses membres'));
+  }
+  
+  // Si plus de 3 membres, vérifier les règles FEVEO 2050 pour la composition de genre
+  if (totalMembres > 3) {
+    // Compter la composition par genre
+    const femmes = this.membres.filter(m => m.genre === 'femme').length + 1; // +1 présidente
+    const jeunes = this.membres.filter(m => m.genre === 'jeune').length;
+    const hommes = this.membres.filter(m => m.genre === 'homme').length;
+    
+    // Vérifier les règles FEVEO 2050
+    const option1Valid = femmes === totalMembres; // 100% femmes
+    const option2Valid = femmes >= Math.ceil(totalMembres * 0.625) && jeunes >= Math.ceil(totalMembres * 0.3) && hommes <= Math.floor(totalMembres * 0.075); // Composition mixte proportionnelle
+    
+    if (!option1Valid && !option2Valid) {
+      return next(new Error('Composition des membres non conforme aux règles FEVEO 2050: soit 100% femmes, soit minimum 62.5% femmes, 30% jeunes et maximum 7.5% hommes'));
+    }
   }
   
   next();

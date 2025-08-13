@@ -1,0 +1,95 @@
+{
+  "testGieCodes": [
+    {
+      "code": "FEVEO-02-01-04-04-001",
+      "nom": "GIE FEMMES ACTIVES KAOLACK",
+      "presidente": {
+        "nom": "DIOP",
+        "prenom": "Fatou",
+        "telephone": "+221771234567"
+      },
+      "status": "active",
+      "montantAdhesion": 25000
+    },
+    {
+      "code": "FEVEO-02-01-04-04-002", 
+      "nom": "GIE SOLIDARITE FEMININE",
+      "presidente": {
+        "nom": "FALL",
+        "prenom": "Awa",
+        "telephone": "+221772345678"
+      },
+      "status": "pending_payment",
+      "montantAdhesion": 25000
+    },
+    {
+      "code": "FEVEO-02-01-04-04-003",
+      "nom": "GIE ENTREPRENEURES UNIES",
+      "presidente": {
+        "nom": "NDIAYE",
+        "prenom": "Aminata",
+        "telephone": "+221773456789"
+      },
+      "status": "pending_validation",
+      "montantAdhesion": 25000
+    },
+    {
+      "code": "FEVEO-02-01-04-04-004",
+      "nom": "GIE DEVELOPPEMENT RURAL",
+      "presidente": {
+        "nom": "SECK",
+        "prenom": "Mame Diarra",
+        "telephone": "+221774567890"
+      },
+      "status": "active",
+      "montantAdhesion": 25000
+    },
+    {
+      "code": "FEVEO-02-01-04-04-005",
+      "nom": "GIE TRANSFORMATION AGRICOLE",
+      "presidente": {
+        "nom": "BA",
+        "prenom": "Khady",
+        "telephone": "+221775678901"
+      },
+      "status": "pending_payment",
+      "montantAdhesion": 25000
+    }
+  ],
+  "whatsappTestCodes": [
+    {
+      "gieCode": "FEVEO-02-01-04-04-001",
+      "code": "123456",
+      "expires": 300000,
+      "active": true
+    },
+    {
+      "gieCode": "FEVEO-02-01-04-04-002",
+      "code": "234567",
+      "expires": 300000,
+      "active": true
+    },
+    {
+      "gieCode": "FEVEO-02-01-04-04-003",
+      "code": "345678",
+      "expires": 300000,
+      "active": true
+    }
+  ],
+  "paymentTestData": [
+    {
+      "gieCode": "FEVEO-02-01-04-04-002",
+      "transactionId": "FEVEO_ACTIVATION_FEVEO-02-01-04-04-002_1723478400000_test123",
+      "amount": 25000,
+      "paymentUrl": "https://checkout.wave.com/test-payment-link",
+      "status": "pending"
+    },
+    {
+      "gieCode": "FEVEO-02-01-04-04-005", 
+      "transactionId": "FEVEO_ACTIVATION_FEVEO-02-01-04-04-005_1723478500000_test456",
+      "amount": 25000,
+      "paymentUrl": "https://checkout.wave.com/test-payment-link-2",
+      "status": "pending"
+    }
+  ]
+}

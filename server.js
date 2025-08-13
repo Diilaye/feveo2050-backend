@@ -4,6 +4,12 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 require('dotenv').config();
 
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
+const { Twilio } = require("twilio");
+const { body, validationResult } = require("express-validator");
+
+
 const connectDB = require('./src/config/database');
 
 // Import des routes
@@ -124,60 +130,57 @@ app.get('/api/test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// === OTP store en mémoire ===
+const store = new Map(); // key: phone, value: { hash, expiresAt, attempts, lastSendAt }
 
-// Middleware de gestion des erreurs 404
-app.use((req, res, next) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route non trouvée',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ATTEMPT_LIMIT = 5;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 10;
 
-// Middleware global de gestion des erreurs
-app.use((error, req, res, next) => {
-  console.error('🚨 Erreur serveur:', error);
+// === Rate limit par IP (mémoire) ===
+const rateBucket = new Map();
 
-  // Erreur de validation Mongoose
-  if (error.name === 'ValidationError') {
-    const errors = Object.values(error.errors).map(err => ({
-      field: err.path,
-      message: err.message
-    }));
-    
-    return res.status(400).json({
-      success: false,
-      message: 'Erreur de validation',
-      errors
-    });
+function rateLimit(ip) {
+  const now = Date.now();
+  const b = rateBucket.get(ip);
+  if (!b || now - b.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateBucket.set(ip, { count: 1, windowStart: now });
+    return;
   }
+  b.count++;
+  if (b.count > RATE_LIMIT_MAX) throw new Error("RATE_LIMIT");
+}
 
-  // Erreur de duplication MongoDB
-  if (error.code === 11000) {
-    const field = Object.keys(error.keyValue)[0];
-    return res.status(400).json({
-      success: false,
-      message: `${field} existe déjà`,
-      field
-    });
+// Nettoyage périodique des OTP expirés
+setInterval(() => {
+  const now = Date.now();
+  for (const [phone, rec] of store.entries()) {
+    if (rec.expiresAt <= now) store.delete(phone);
   }
+}, 30_000);
 
-  // Erreur CastError (ID MongoDB invalide)
-  if (error.name === 'CastError') {
-    return res.status(400).json({
-      success: false,
-      message: 'ID invalide'
-    });
-  }
+// === Utils ===
+const twilio = new Twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
-  // Erreur générique
-  res.status(error.status || 500).json({
-    success: false,
-    message: error.message || 'Erreur interne du serveur',
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
-  });
-});
+function generateOtp(len = 6) {
+  return crypto.randomInt(0, 10 ** len).toString().padStart(len, "0");
+}
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(otp).digest("hex");
+}
+function clientIp(req) {
+  return (req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+    || req.socket.remoteAddress
+    || "ip";
+}
+
+// === Routes ===
+
 
 const PORT = process.env.PORT || 3051;
 

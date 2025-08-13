@@ -1,0 +1,100 @@
+{
+  "membres_exemple": [
+    {
+      "nom": "Kane",
+      "prenom": "Aminata",
+      "telephone": "771112233",
+      "role": "presidente",
+      "dateNaissance": "1980-05-20",
+      "profession": "Enseignante",
+      "adresse": "Dakar, Parcelles Assainies"
+    },
+    {
+      "nom": "Sarr",
+      "prenom": "Moussa",
+      "telephone": "772223344",
+      "role": "tresorier",
+      "dateNaissance": "1975-11-10",
+      "profession": "Mécanicien",
+      "adresse": "Thiès, Senegal"
+    },
+    {
+      "nom": "Fall",
+      "prenom": "Aïssatou",
+      "telephone": "773334455",
+      "role": "secretaire",
+      "dateNaissance": "1988-02-14",
+      "profession": "Couturière",
+      "adresse": "Kaolack, Senegal"
+    },
+    {
+      "nom": "Diallo",
+      "prenom": "Mamadou",
+      "telephone": "774445566",
+      "role": "membre",
+      "dateNaissance": "1992-07-03",
+      "profession": "Chauffeur",
+      "adresse": "Saint-Louis, Senegal"
+    },
+    {
+      "nom": "Ndiaye",
+      "prenom": "Khadija",
+      "telephone": "775556677",
+      "role": "membre",
+      "dateNaissance": "1985-09-25",
+      "profession": "Vendeuse",
+      "adresse": "Ziguinchor, Senegal"
+    }
+  ],
+  "roles_possibles": [
+    "presidente",
+    "vice-presidente", 
+    "secretaire",
+    "tresorier",
+    "tresoriere",
+    "membre",
+    "conseiller"
+  ],
+  "professions_courantes": [
+    "Commerçant(e)",
+    "Enseignant(e)",
+    "Chauffeur",
+    "Couturier(e)",
+    "Mécanicien",
+    "Vendeuse",
+    "Agriculteur",
+    "Entrepreneur",
+    "Artisan",
+    "Fonctionnaire"
+  ],
+  "guide_utilisation": {
+    "ajouter_membre": {
+      "endpoint": "POST /api/wallet/members/{gieCode}/add",
+      "champs_obligatoires": ["nom", "prenom", "telephone"],
+      "champs_optionnels": ["role", "dateNaissance", "profession", "adresse"],
+      "limite": "40 membres maximum par GIE"
+    },
+    "modifier_membre": {
+      "endpoint": "PUT /api/wallet/members/{gieCode}/{membreId}",
+      "description": "Tous les champs sont optionnels, seuls les champs fournis seront modifiés"
+    },
+    "supprimer_membre": {
+      "endpoint": "DELETE /api/wallet/members/{gieCode}/{membreId}",
+      "description": "Suppression définitive du membre"
+    },
+    "consulter_membres": {
+      "endpoint": "GET /api/wallet/members/{gieCode}",
+      "description": "Liste complète des membres avec leurs informations"
+    },
+    "statistiques": {
+      "endpoint": "GET /api/wallet/members/{gieCode}/stats",
+      "description": "Statistiques détaillées sur les membres du GIE"
+    }
+  },
+  "validations": {
+    "telephone": "Unique dans le GIE, ne peut pas être dupliqué",
+    "nom_prenom": "Obligatoires, espaces supprimés automatiquement",
+    "limite_membres": "Maximum 40 membres par GIE",
+    "acces": "Seuls les GIE avec adhésion peuvent gérer leurs membres"
+  }
+}

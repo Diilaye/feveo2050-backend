@@ -1,0 +1,47 @@
+{
+  "nomGIE": "GIE COMMERCE KAOLACK TEST",
+  "identifiantGIE": "GIECOMKAO004",
+  "numeroProtocole": "004",
+  "presidenteNom": "Sarr",
+  "presidentePrenom": "Bineta",
+  "presidenteCIN": "4567890123456",
+  "presidenteTelephone": "+221774567890",
+  "presidenteEmail": "bineta.sarr@test.com",
+  "presidenteAdresse": "Kaolack Centre",
+  "region": "KAOLACK",
+  "departement": "Kaolack",
+  "arrondissement": "Kaolack",
+  "commune": "Kaolack",
+  "codeRegion": "05",
+  "codeDepartement": "01",
+  "codeArrondissement": "01",
+  "codeCommune": "01",
+  "secteurPrincipal": "Commerce",
+  "autresActivites": "Vente de produits locaux",
+  "nomCoordinateur": "Oumou Dia",
+  "matriculeCoordinateur": "COORD-004",
+  "immatricule": true,
+  "numeroRegistre": "REG-004-2025",
+  "membres": [
+    {
+      "nom": "Faye",
+      "prenom": "Khady",
+      "fonction": "Secrétaire",
+      "cin": "4444444444444",
+      "telephone": "+221774444444",
+      "genre": "femme",
+      "age": 28,
+      "email": "khady.faye@test.com"
+    },
+    {
+      "nom": "Sall",
+      "prenom": "Fatima",
+      "fonction": "Trésorière",
+      "cin": "5555555555555",
+      "telephone": "+221775555555",
+      "genre": "femme",
+      "age": 32,
+      "email": "fatima.sall@test.com"
+    }
+  ]
+}

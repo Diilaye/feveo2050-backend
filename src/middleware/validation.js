@@ -88,8 +88,23 @@ const validateGIE = [
     .isIn(['Agriculture', 'Élevage', 'Transformation', 'Commerce & Distribution'])
     .withMessage('Secteur principal invalide'),
   body('membres')
-    .isArray({ min: 39, max: 39 })
-    .withMessage('Le GIE doit avoir exactement 39 membres (+ présidente = 40)'),
+    .isArray({ min: 2 })
+    .withMessage('Le GIE doit avoir au minimum 3 membres (incluant la présidente)')
+    .custom((membres) => {
+      // Vérifier les rôles obligatoires
+      const secretaire = membres.find(m => m.fonction === 'Secrétaire');
+      const tresoriere = membres.find(m => m.fonction === 'Trésorière');
+      
+      if (!secretaire) {
+        throw new Error('Le GIE doit avoir une Secrétaire parmi ses membres');
+      }
+      
+      if (!tresoriere) {
+        throw new Error('Le GIE doit avoir une Trésorière parmi ses membres');
+      }
+      
+      return true;
+    }),
   handleValidationErrors
 ];
 
@@ -182,6 +197,43 @@ const validateMotDePasseChange = [
   handleValidationErrors
 ];
 
+// Validation pour les paiements
+const validatePaiement = [
+  body('amount')
+    .isNumeric()
+    .isFloat({ min: 100 })
+    .withMessage('Montant du paiement doit être supérieur à 100 FCFA'),
+  body('method')
+    .isIn(['WAVE', 'OM'])
+    .withMessage('Méthode de paiement invalide (WAVE ou OM uniquement)'),
+  body('gieCode')
+    .optional()
+    .matches(/^FEVEO-\d{2}-\d{2}-\d{2}-\d{2}-\d{3}$/)
+    .withMessage('Format de code GIE invalide'),
+  body('rv')
+    .optional()
+    .isMongoId()
+    .withMessage('ID rendez-vous invalide'),
+  handleValidationErrors
+];
+
+// Validation pour la confirmation de paiement
+const validateConfirmPaiement = [
+  body('transactionId')
+    .trim()
+    .isLength({ min: 10 })
+    .withMessage('ID de transaction requis'),
+  body('gieCode')
+    .optional()
+    .matches(/^FEVEO-\d{2}-\d{2}-\d{2}-\d{2}-\d{3}$/)
+    .withMessage('Format de code GIE invalide'),
+  body('status')
+    .optional()
+    .isIn(['PENDING', 'SUCCESS', 'CANCELED', 'REFUND'])
+    .withMessage('Statut de transaction invalide'),
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateLogin,
@@ -191,5 +243,7 @@ module.exports = {
   validateAdhesion,
   validateInvestissement,
   validateProfilUpdate,
-  validateMotDePasseChange
+  validateMotDePasseChange,
+  validatePaiement,
+  validateConfirmPaiement
 };
