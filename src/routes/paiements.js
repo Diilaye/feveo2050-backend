@@ -5,20 +5,20 @@ const { authenticateToken } = require('../middleware/auth');
 const { validerCreationPaiement, validerPagination, validerFiltresPaiement } = require('../middleware/paiementValidation');
 
 // Middleware d'authentification pour toutes les routes sauf webhook
-router.use((req, res, next) => {
+//router.use((req, res, next) => {
   // Exclure le webhook de l'authentification
-  if (req.path === '/webhook/wave') {
-    return next();
-  }
-  authenticateToken(req, res, next);
-});
+  //if (req.path === '/webhook/wave') {
+    //return next();
+  //}
+  //authenticateToken(req, res, next);
+//});
 
 /**
  * @route   POST /api/paiements
  * @desc    Créer un nouveau paiement
  * @access  Private
  */
-router.post('/', validerCreationPaiement, paiementController.creerPaiement);
+router.post('/', paiementController.creerPaiement);
 
 /**
  * @route   GET /api/paiements

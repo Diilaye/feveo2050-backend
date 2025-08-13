@@ -2,7 +2,7 @@ const axios = require('axios');
 
 class WaveService {
   constructor() {
-    this.apiKey = process.env.WAVE_API_KEY || 'wave_sn_prod_FIdhHNGkeoAFnuGNxuh8WD3L9XjEBqjRCKx2zEZ87H7LWSwHs2v2aA_5q_ZJGwaLfphltYSRawKP-voVugCpwWB2FMH3ZTtC0w';
+    this.apiKey = process.env.WAVE_API_KEY || '';
     this.baseURL = process.env.WAVE_BASE_URL || 'https://api.wave.com/v1';
     this.checkoutBaseURL = process.env.WAVE_CHECKOUT_BASE_URL || 'https://checkout.wave.com';
     this.webhookSecret = process.env.WAVE_WEBHOOK_SECRET;

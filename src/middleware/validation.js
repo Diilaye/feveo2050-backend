@@ -210,10 +210,6 @@ const validatePaiement = [
     .optional()
     .matches(/^FEVEO-\d{2}-\d{2}-\d{2}-\d{2}-\d{3}$/)
     .withMessage('Format de code GIE invalide'),
-  body('rv')
-    .optional()
-    .isMongoId()
-    .withMessage('ID rendez-vous invalide'),
   handleValidationErrors
 ];
 

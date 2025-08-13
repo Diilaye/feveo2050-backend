@@ -5,7 +5,6 @@ const paiementSchema = new mongoose.Schema({
   // Référence du paiement
   referencePaiement: {
     type: String,
-    required: true,
     unique: true
   },
   
@@ -58,32 +57,7 @@ const paiementSchema = new mongoose.Schema({
     enum: ['GIE', 'CycleInvestissement', 'Adhesion', 'Utilisateur']
   },
   
-  // Utilisateur qui effectue le paiement
-  utilisateurId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Utilisateur',
-    required: true
-  },
   
-  // Informations du payeur
-  payeur: {
-    nom: {
-      type: String,
-      required: true
-    },
-    prenom: {
-      type: String,
-      required: true
-    },
-    telephone: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: true
-    }
-  },
   
   // Méthode de paiement
   methodePaiement: {
@@ -91,16 +65,6 @@ const paiementSchema = new mongoose.Schema({
     required: true,
     enum: ['wave', 'orange_money', 'free_money', 'carte_bancaire', 'virement', 'especes'],
     default: 'wave'
-  },
-  
-  // URL de callback Wave
-  urlCallback: {
-    type: String
-  },
-  
-  // URL de retour après paiement
-  urlRetour: {
-    type: String
   },
   
   // Données de réponse Wave

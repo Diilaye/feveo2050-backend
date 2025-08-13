@@ -103,7 +103,7 @@ app.use('/api/adhesions', adhesionRoutes);
 app.use('/api/investissements', investissementRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/paiements', paiementRoutes);
-app.use('/api/payments', paymentRoutes);
+//app.use('/api/payments', paymentRoutes);
 app.use('/api/twilio', twilioTestRoutes);
 app.use('/api/whatsapp', whatsappTestRoutes);
 app.use('/api/messaging', messagingTestRoutes);

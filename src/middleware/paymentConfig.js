@@ -2,7 +2,7 @@
 const paymentConfig = {
   wave: {
     apiUrl: 'https://api.wave.com/v1/checkout/sessions',
-    token: process.env.WAVE_API_TOKEN || 'wave_sn_prod_FIdhHNGkeoAFnuGNxuh8WD3L9XjEBqjRCKx2zEZ87H7LWSwHs2v2aA_5q_ZJGwaLfphltYSRawKP-voVugCpwWB2FMH3ZTtC0w',
+    token: process.env.WAVE_API_TOKEN || '',
     currency: 'XOF',
     // URLs de callback pour FEVEO 2050
     callbacks: {

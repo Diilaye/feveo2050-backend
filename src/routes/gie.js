@@ -12,7 +12,8 @@ const {
   verifierCodeConnexionGIE,
   getStatsPubliques,
   validerPaiementGIE,
-  getGIEsEnAttentePaiement
+  getGIEsEnAttentePaiement,
+  validateGieByIdentifiant
 } = require('../controllers/gieController');
 const {
   validateGIE
@@ -29,6 +30,11 @@ const {
 // @desc    Obtenir les statistiques publiques des GIEs
 // @access  Public
 router.get('/stats-publiques', getStatsPubliques);
+
+// @route   GET /api/gie/validate/:identifiant
+// @desc    Valider un GIE par son identifiant
+// @access  Public
+router.get('/validate/:identifiant', validateGieByIdentifiant);
 
 // @route   POST /api/gie/verifier-code-connexion
 // @desc    Vérifier code de connexion GIE

@@ -979,6 +979,81 @@ const getGIEsEnAttentePaiement = async (req, res) => {
   }
 };
 
+// @desc    Valider un GIE par son identifiant
+// @route   GET /api/gie/validate/:identifiant
+// @access  Public
+const validateGieByIdentifiant = async (req, res) => {
+  try {
+    const { identifiant } = req.params;
+    
+    if (!identifiant) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identifiant GIE requis'
+      });
+    }
+
+    console.log('🔍 Validation du GIE avec identifiant:', identifiant);
+
+    // Rechercher le GIE par identifiantGIE en priorité
+    let gie = await GIE.findOne({ identifiantGIE: identifiant });
+    
+    // Si pas trouvé et que l'identifiant ressemble à un ObjectId, essayer par _id
+    if (!gie && identifiant.match(/^[0-9a-fA-F]{24}$/)) {
+      gie = await GIE.findById(identifiant);
+    }
+
+    if (!gie) {
+      return res.status(404).json({
+        success: false,
+        message: 'GIE non trouvé'
+      });
+    }
+
+    // Vérifier l'éligibilité du GIE pour les investissements
+    const eligibilite = {
+      statut: gie.statutEnregistrement === 'valide',
+      documentsComplets: true, // Assumé complet si enregistré
+      dateCreationValide: true,
+      validePourInvestissement: gie.statutEnregistrement === 'valide'
+    };
+
+    // Formater les informations du GIE pour la réponse
+    const gieInfo = {
+      id: gie._id,
+      nom: gie.nomGIE,
+      numeroRegistre: gie.identifiantGIE,
+      secteurActivite: gie.secteurPrincipal || 'Agriculture',
+      statut: gie.statutEnregistrement === 'valide' ? 'actif' : 'en_attente',
+      validePourInvestissement: gie.statutEnregistrement === 'valide',
+      documentsPourcentage: gie.statutEnregistrement === 'valide' ? 100 : 75,
+      dateCreation: gie.dateEnregistrement || gie.createdAt,
+      adresse: `${gie.commune}, ${gie.departement}, ${gie.region}`,
+      description: gie.objectifs || `GIE spécialisé dans ${gie.secteurPrincipal}`,
+      presidenteNom: gie.presidenteNom,
+      presidentePrenom: gie.presidentePrenom,
+      nombreMembres: gie.nombreMembres || (gie.membres ? gie.membres.length + 1 : 1),
+      eligibilite
+    };
+
+    console.log('✅ GIE trouvé et validé:', gieInfo.nom);
+
+    res.json({
+      success: true,
+      gie: gieInfo,
+      message: 'GIE validé avec succès'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la validation du GIE:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la validation du GIE',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   createGIE,
   getAllGIE,
@@ -991,5 +1066,6 @@ module.exports = {
   verifierCodeConnexionGIE,
   getStatsPubliques,
   validerPaiementGIE,
-  getGIEsEnAttentePaiement
+  getGIEsEnAttentePaiement,
+  validateGieByIdentifiant
 };

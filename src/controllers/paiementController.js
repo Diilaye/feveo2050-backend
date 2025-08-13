@@ -1,10 +1,21 @@
 const Paiement = require('../models/Paiement');
+const GIE = require('../models/GIE');
 const WaveService = require('../services/WaveService');
 const { validationResult } = require('express-validator');
 
 class PaiementController {
   constructor() {
     this.waveService = new WaveService();
+    
+    // Binder les méthodes pour préserver le contexte 'this'
+    this.creerPaiement = this.creerPaiement.bind(this);
+    this.obtenirPaiement = this.obtenirPaiement.bind(this);
+    this.obtenirPaiementParReference = this.obtenirPaiementParReference.bind(this);
+    this.listerPaiements = this.listerPaiements.bind(this);
+    this.verifierStatutPaiement = this.verifierStatutPaiement.bind(this);
+    this.webhookWave = this.webhookWave.bind(this);
+    this.annulerPaiement = this.annulerPaiement.bind(this);
+    this.traiterPaiementReussi = this.traiterPaiementReussi.bind(this);
   }
 
   /**
@@ -25,25 +36,31 @@ class PaiementController {
         montant,
         devise = 'XOF',
         typePaiement,
-        entiteId,
-        typeEntite,
-        payeur,
         methodePaiement = 'wave',
-        urlRetour,
         metadonnees = {}
       } = req.body;
+
+      const gieCode = req.body.gieCode || null;
+
+      // Vérifier si l'entité existe
+
+      const gie = await GIE.findOne({ identifiantGIE: gieCode });
+
+      if (!gie) {
+        return res.status(404).json({
+          success: false,
+          message: 'GIE non trouvé'
+        });
+      }
 
       // Créer l'enregistrement de paiement
       const nouveauPaiement = new Paiement({
         montant,
         devise,
         typePaiement,
-        entiteId,
-        typeEntite,
-        utilisateurId: req.user.id,
-        payeur,
+        entiteId: gie._id,
+        typeEntite: 'GIE',
         methodePaiement,
-        urlRetour,
         metadonnees,
         dateExpiration: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
       });
@@ -52,13 +69,38 @@ class PaiementController {
 
       // Si paiement Wave, créer le checkout
       if (methodePaiement === 'wave') {
+        // Gestion des URLs pour Wave (exige HTTPS)
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const isLocalhost = frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1');
+        
+        // URLs pour Wave - doit être HTTPS en production, URLs de test en développement
+        let urlSucces, urlErreur;
+        
+        if (isLocalhost && process.env.NODE_ENV === 'development') {
+          // URLs de test pour le développement local
+          urlSucces = `https://httpbin.org/get?ref=${nouveauPaiement.referencePaiement}&status=success`;
+          urlErreur = `https://httpbin.org/get?ref=${nouveauPaiement.referencePaiement}&status=error`;
+        } else {
+          // URLs de production (doivent être HTTPS)
+          urlSucces = `${frontendUrl}/paiement/succes?ref=${nouveauPaiement.referencePaiement}`;
+          urlErreur = `${frontendUrl}/paiement/erreur?ref=${nouveauPaiement.referencePaiement}`;
+        }
+
         const donneesCheckout = {
           montant: montant, // Montant original, sera formaté dans le service
           devise,
           referenceClient: nouveauPaiement.referencePaiement,
-          urlSucces: `${process.env.FRONTEND_URL}/paiement/succes?ref=${nouveauPaiement.referencePaiement}`,
-          urlErreur: `${process.env.FRONTEND_URL}/paiement/erreur?ref=${nouveauPaiement.referencePaiement}`
+          urlSucces: urlSucces,
+          urlErreur: urlErreur
         };
+
+        console.log('🔄 Création checkout Wave avec URLs:', {
+          urlSucces,
+          urlErreur,
+          reference: nouveauPaiement.referencePaiement,
+          montant,
+          isLocalhost
+        });
 
         const resultatCheckout = await this.waveService.creerCheckout(donneesCheckout);
 
