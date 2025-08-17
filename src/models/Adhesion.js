@@ -190,7 +190,6 @@ const adhesionSchema = new mongoose.Schema({
 });
 
 // Index pour les requêtes
-adhesionSchema.index({ gieId: 1 });
 adhesionSchema.index({ 'paiement.statut': 1 });
 adhesionSchema.index({ 'validation.statut': 1 });
 adhesionSchema.index({ typeAdhesion: 1 });
@@ -226,5 +225,7 @@ adhesionSchema.methods.completerEtape = function(nomEtape) {
     this.etapesProcessus[nomEtape].date = new Date();
   }
 };
+
+// Indexes are already defined above
 
 module.exports = mongoose.model('Adhesion', adhesionSchema);

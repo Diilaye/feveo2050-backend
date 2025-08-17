@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const membreSchema = new mongoose.Schema({
@@ -213,6 +214,25 @@ const gieSchema = new mongoose.Schema({
 gieSchema.index({ nomGIE: 'text', identifiantGIE: 'text' });
 gieSchema.index({ region: 1, departement: 1 });
 gieSchema.index({ numeroProtocole: 1 });
+
+// Statistiques publiques : nombre de membres par genre sur tous les GIE
+gieSchema.statics.getStatsPubliques = async function() {
+  // Récupère tous les GIEs avec leurs membres
+  const gies = await this.find({}, { membres: 1 }).lean();
+  let femmes = 0;
+  let jeunes = 0;
+  let hommes = 0;
+  for (const gie of gies) {
+    if (Array.isArray(gie.membres)) {
+      for (const membre of gie.membres) {
+        if (membre.genre === 'femme') femmes++;
+        else if (membre.genre === 'jeune') jeunes++;
+        else if (membre.genre === 'homme') hommes++;
+      }
+    }
+  }
+  return { femmes, jeunes, hommes };
+};
 
 // Validation personnalisée pour la composition des membres
 gieSchema.pre('save', function(next) {

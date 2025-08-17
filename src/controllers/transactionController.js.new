@@ -12,13 +12,13 @@ const paymentServices = {
         baseUrl: process.env.WAVE_API_URL || 'https://api.wave.com',
         apiKey: process.env.WAVE_API_KEY || 'wave_api_key',
         secretKey: process.env.WAVE_SECRET_KEY || 'wave_secret_key',
-        callbackUrl: process.env.WAVE_CALLBACK_URL || 'https://api.feveo2050.sn/api/transactions/wave/callback'
+        callbackUrl: process.env.WAVE_CALLBACK_URL || 'https://api.feveo.org/api/payment/wave/callback'
     },
     OM: {
         baseUrl: process.env.OM_API_URL || 'https://api.orange.com',
         apiKey: process.env.OM_API_KEY || 'om_api_key',
         secretKey: process.env.OM_SECRET_KEY || 'om_secret_key',
-        callbackUrl: process.env.OM_CALLBACK_URL || 'https://api.feveo2050.sn/api/transactions/om/callback'
+        callbackUrl: process.env.OM_CALLBACK_URL || 'https://api.feveo.org/api/payment/om/callback'
     },
     VIREMENT: {
         accountNumber: process.env.FEVEO_ACCOUNT_NUMBER || '123456789',

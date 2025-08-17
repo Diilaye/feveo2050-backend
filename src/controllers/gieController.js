@@ -1,3 +1,35 @@
+// @desc    Obtenir le prochain numeroProtocole pour une commune
+// @route   GET /api/gie/next-protocol/:codeCommune
+// @access  Public
+const getNextProtocolForCommune = async (req, res) => {
+  try {
+    const { codeCommune } = req.params;
+    if (!codeCommune) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code commune requis'
+      });
+    }
+    const gieCount = await GIE.countDocuments({ codeCommune });
+    if (gieCount >= 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette commune a déjà atteint la limite de 50 GIE.'
+      });
+    }
+    const nextNumero = (gieCount + 1).toString().padStart(3, '0');
+    res.json({
+      success: true,
+      data: { nextNumeroProtocole: nextNumero }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la génération du numéro de protocole',
+      error: error.message
+    });
+  }
+};
 const GIE = require('../models/GIE');
 const Adhesion = require('../models/Adhesion');
 const CycleInvestissement = require('../models/CycleInvestissement');
@@ -173,27 +205,38 @@ const createGIE = async (req, res) => {
       codeCommune: processedGieData.codeCommune
     });
     
-    // Vérifier l'unicité de l'identifiant et du protocole
+
+    // 1. Vérifier le nombre de GIE pour la commune
+    const gieCountForCommune = await GIE.countDocuments({ codeCommune: processedGieData.codeCommune });
+    if (gieCountForCommune >= 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette commune a déjà atteint la limite de 50 GIE.'
+      });
+    }
+
+    // 2. Générer le numeroProtocole unique pour la commune
+    const nextNumeroProtocole = (gieCountForCommune + 1).toString().padStart(3, '0');
+    processedGieData.numeroProtocole = nextNumeroProtocole;
+
+    // 3. Vérifier l'unicité de l'identifiant et du protocole dans la commune
     const existingGIE = await GIE.findOne({
       $or: [
         { identifiantGIE: processedGieData.identifiantGIE },
-        { presidenteCIN: processedGieData.presidenteCIN }
+        { presidenteCIN: processedGieData.presidenteCIN },
+        { numeroProtocole: processedGieData.numeroProtocole, codeCommune: processedGieData.codeCommune }
       ]
     });
-
-    console.log(existingGIE);
-
     if (existingGIE) {
       return res.status(400).json({
         success: false,
-        message: 'GIE avec cet identifiant, protocole ou CIN présidente existe déjà'
+        message: 'GIE avec cet identifiant, protocole (dans la commune) ou CIN présidente existe déjà'
       });
     }
 
     // Créer le GIE avec statut approprié
     const gie = new GIE({
       ...processedGieData,
-      // Si c'est un enregistrement public, définir le statut en attente de paiement
       statutEnregistrement: isPublicRegistration ? 'en_attente_paiement' : 'valide'
     });
     await gie.save();
@@ -766,7 +809,7 @@ const verifierCodeConnexionGIE = async (req, res) => {
 // @access  Public
 const getStatsPubliques = async (req, res) => {
   try {
-    // Compter le nombre total de GIEs et calculer les vrais totaux
+    // Compter le nombre total de GIEs
     const totalGIEs = await GIE.countDocuments();
 
     // Compter les GIEs par région
@@ -789,27 +832,30 @@ const getStatsPubliques = async (req, res) => {
       }
     ]);
 
-    // Calculer le nombre réel de membres en additionnant les membres de chaque GIE
-    const membresAggregation = await GIE.aggregate([
-      {
-        $project: {
-          nombreMembres: { $size: '$membres' }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalMembres: { $sum: '$nombreMembres' }
-        }
+    // Récupérer tous les GIEs pour compter les membres par genre
+    const allGIEs = await GIE.find({}, { membres: 1, presidenteGenre: 1 });
+    let totalMembres = 0;
+    let totalFemmes = 0;
+    let totalJeunes = 0;
+    let totalHommes = 0;
+
+    allGIEs.forEach(gie => {
+      // Compter la présidente
+      if (gie.presidenteGenre === 'femme') totalFemmes++;
+      else if (gie.presidenteGenre === 'jeune') totalJeunes++;
+      else if (gie.presidenteGenre === 'homme') totalHommes++;
+      totalMembres++;
+
+      // Compter les membres
+      if (Array.isArray(gie.membres)) {
+        gie.membres.forEach(m => {
+          if (m.genre === 'femme') totalFemmes++;
+          else if (m.genre === 'jeune') totalJeunes++;
+          else if (m.genre === 'homme') totalHommes++;
+          totalMembres++;
+        });
       }
-    ]);
-
-    const totalMembres = membresAggregation.length > 0 ? membresAggregation[0].totalMembres : 0;
-
-    // Estimation des différentes catégories basée sur les règles FEVEO 2050
-    const estimationFemmes = Math.floor(totalMembres * 0.625); // 62.5% minimum
-    const estimationJeunes = Math.floor(totalMembres * 0.3);   // 30% des jeunes
-    const estimationAdultes = Math.floor(totalMembres * 0.175); // Reste adultes hommes
+    });
 
     // Calculer les jours d'investissement (chaque GIE investit pendant 1826 jours sur 5 ans)
     const joursInvestissement = totalGIEs * 1826;
@@ -820,10 +866,16 @@ const getStatsPubliques = async (req, res) => {
       data: {
         totalGIEs,
         totalMembres,
+        membresParGenre: {
+          femmes: totalFemmes,
+          jeunes: totalJeunes,
+          hommes: totalHommes
+        },
+        // Format pour correspondre à l'interface StatsPubliques du frontend
         estimations: {
-          femmes: estimationFemmes,
-          jeunes: estimationJeunes,
-          adultes: estimationAdultes
+          femmes: totalFemmes,
+          jeunes: totalJeunes,
+          adultes: totalHommes  // 'adultes' dans le frontend correspond à 'hommes' dans le backend
         },
         joursInvestissement,
         repartition: {
@@ -1062,6 +1114,7 @@ module.exports = {
   deleteGIE,
   getGIEStats,
   getNextProtocol,
+  getNextProtocolForCommune,
   envoyerCodeConnexionGIE,
   verifierCodeConnexionGIE,
   getStatsPubliques,

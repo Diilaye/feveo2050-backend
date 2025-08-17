@@ -39,6 +39,7 @@
     "mongoose": "^8.16.4",
     "morgan": "^1.10.1",
     "node-fetch": "^2.7.0",
+    "order-id": "^2.2.0",
     "twilio": "^5.8.0"
   },
   "devDependencies": {

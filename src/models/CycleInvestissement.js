@@ -150,7 +150,7 @@ const cycleInvestissementSchema = new mongoose.Schema({
 });
 
 // Index pour les requêtes fréquentes
-cycleInvestissementSchema.index({ gieId: 1 });
+// Note: gieId déjà indexé par unique: true
 cycleInvestissementSchema.index({ statutCycle: 1 });
 cycleInvestissementSchema.index({ 'investissementsJournaliers.date': 1 });
 

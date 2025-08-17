@@ -117,8 +117,8 @@ const utilisateurSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index
-utilisateurSchema.index({ email: 1 });
+// Index pour améliorer les performances des recherches
+// Note: email déjà indexé par unique: true
 utilisateurSchema.index({ role: 1 });
 utilisateurSchema.index({ statut: 1 });
 

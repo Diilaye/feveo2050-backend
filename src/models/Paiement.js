@@ -126,8 +126,7 @@ const paiementSchema = new mongoose.Schema({
 
 // Index pour améliorer les performances
 paiementSchema.index({ utilisateurId: 1, dateCreation: -1 });
-paiementSchema.index({ referencePaiement: 1 });
-paiementSchema.index({ waveTransactionId: 1 });
+// Note: referencePaiement et waveTransactionId déjà indexés par unique/sparse
 paiementSchema.index({ statut: 1, dateCreation: -1 });
 paiementSchema.index({ entiteId: 1, typeEntite: 1 });
 
