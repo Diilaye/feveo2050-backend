@@ -34,12 +34,9 @@ const paymentServices = {
     }
 };
 
-const populateObject = [ {
+const populateObject = [{
     path: 'gieId',
     select: 'identifiantGIE nomGIE presidenteNom presidentePrenom presidenteTelephone'
-}, {
-    path: 'cycleInvestissementId',
-    select: 'nom dateDebut dateFin'
 }];
 
 /**
