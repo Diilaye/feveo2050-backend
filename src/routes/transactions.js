@@ -21,7 +21,8 @@ const auth = require('../middleware/auth');
 // Route de création de transaction avec middlewares de paiement
 router.post('/', 
   validatePaiement, 
-  transactionController.store
+  transactionController.store,
+  injectPaymentConfig
 );
 
 // Routes spécifiques FEVEO 2050
