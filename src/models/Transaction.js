@@ -5,7 +5,8 @@ const Schema = mongoose.Schema;
 const transactionModel = new Schema({
     
     reference: {
-        type: String 
+        type: String ,
+        unique :true
     },
 
     amount : {
@@ -19,7 +20,7 @@ const transactionModel = new Schema({
     // Type d'opération
     operationType: {
         type: String,
-        enum: ['ADHESION', 'INVESTISSEMENT'],
+        enum: ['ADHESION','INVESTISSEMENT'],
         required: true
     },
     
@@ -67,22 +68,8 @@ const transactionModel = new Schema({
     },
     
     // Référence au cycle d'investissement
-    cycleInvestissementId: {
-        type: Schema.Types.ObjectId,
-        ref: "CycleInvestissement"
-    },
-    
-    // Calendrier d'investissement (dates importantes et événements)
-    investmentCalendar: {
-        type: [{
-            date: Date,
-            event: String,
-            completed: {
-                type: Boolean,
-                default: false
-            },
-            notes: String
-        }]
+    cycleInvestissement: {
+        type: Schema.Types.Number,
     },
     
     status: {
@@ -143,7 +130,7 @@ const transactionModel = new Schema({
 });
 
 // Middleware pre-save pour initialiser les dates d'investissement et le calendrier
-transactionModel.pre('save', function(next) {
+/*transactionModel.pre('save', function(next) {
     // Si c'est une opération d'investissement
     if (this.operationType === 'INVESTISSEMENT') {
         // Déterminer la date de début (1er avril)
@@ -298,5 +285,5 @@ transactionModel.statics.updateInvestmentDays = async function() {
         };
     }
 };
-
+*/
 module.exports = mongoose.model('transactions', transactionModel) ;

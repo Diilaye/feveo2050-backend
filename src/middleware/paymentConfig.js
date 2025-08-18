@@ -14,8 +14,8 @@ const injectPaymentConfig = (req, res, next) => {
         data : JSON.stringify({
           "amount": req.body.amount,
           "currency": "XOF",
-          "error_url": "https://api.feveo2050.sn/api/transactions/error-wave?token=" + req.transaction.id,
-          "success_url": "https://api.feveo2050.sn/api/transactions/success-wave?token=" + req.transaction.id
+          "error_url": "https://api.feveo2050.sn/api/transactions/error-wave?token=" + req.transaction.reference,
+          "success_url": "https://api.feveo2050.sn/api/transactions/success-wave?token=" + req.transaction.reference
         })
       };
   console.log('🔧 Configuration de paiement injectée dans la requête');

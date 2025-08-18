@@ -131,7 +131,7 @@ exports.store = async (req, res, next) => {
             method, 
             gieCode,
             operationType, 
-            cycleInvestissementId 
+            daysInvested // jours investis 1 , 10 , 15 , 30
         } = req.body;
 
         // Validation des champs requis
@@ -168,8 +168,8 @@ exports.store = async (req, res, next) => {
 
         // Pour les opérations d'investissement
         if (operationType === 'INVESTISSEMENT') {
-            if (cycleInvestissementId) {
-                transaction.cycleInvestissementId = cycleInvestissementId;
+            if (daysInvested) {
+                transaction.daysInvested = daysInvested;
             } else {
                 return message.reponse(res, 'Cycle d\'investissement requis pour une opération d\'investissement', 400, null);
             }
@@ -291,6 +291,9 @@ exports.successWave = async (req, res) => {
 
         console.log('req.query vers:', req.query);
         console.log('req.body vers:', req.body);
+        console.log('req.headers vers:', req.headers);
+        console.log('req.params vers:', req.params);
+        console.log('req.transaction vers:', req.transaction);
 
         // Vérifier la signature Wave (en production)
        // const isValidCallback = validateWaveCallback(req);
@@ -301,8 +304,8 @@ exports.successWave = async (req, res) => {
         } */
 
         // Identifier la transaction par son ID ou référence
-        if (req.query.transactionId || req.body.transactionId) {
-            const transactionId = req.query.transactionId || req.body.transactionId;
+        if (req.query.token) {
+            const transactionId = req.query.token;
             transaction = await transactionModel.findOne({ reference: transactionId });
         } 
         else if (req.query.token || req.body.token) {
@@ -327,12 +330,16 @@ exports.successWave = async (req, res) => {
             if (!transaction.paymentInfo) transaction.paymentInfo = {};
             transaction.paymentInfo.confirmation = paymentDetails;
             
-            await transaction.save();
             
             // Activer le GIE si applicable
-            if (transaction.gieId) {
+            if (transaction.gieId && transaction.operationType === 'ADHESION') {
                 await activateGIEAfterPayment(transaction.gieId);
+            } else {
+                transaction.daysInvestedSuccess += transaction.daysInvestedSuccess || 0; // Ajouter les jours investis
             }
+
+            await transaction.save();
+
             
             // Configurer URL de redirection avec paramètres
             redirectUrl = `${redirectUrl}/payment/success?ref=${transaction.reference}&token=${transaction.token}`;
@@ -357,17 +364,100 @@ exports.successWave = async (req, res) => {
             return res.redirect(redirectUrl);
         } else {
             return res.send(`
-                <html>
-                <head><title>Paiement Wave Confirmé</title></head>
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Paiement Wave Confirmé</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            background-color: #f8f9fa;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                            margin: 0;
+                            color: #333;
+                            text-align: center;
+                            padding: 20px;
+                        }
+                        .payment-container {
+                            background-color: white;
+                            border-radius: 10px;
+                            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                            padding: 30px;
+                            max-width: 400px;
+                            width: 100%;
+                        }
+                        .success-icon {
+                            color: #28a745;
+                            font-size: 50px;
+                            margin-bottom: 20px;
+                        }
+                        .reference {
+                            background-color: #f1f1f1;
+                            padding: 10px;
+                            border-radius: 5px;
+                            font-family: monospace;
+                            margin: 20px 0;
+                        }
+                        h2 {
+                            color: #28a745;
+                            margin-top: 0;
+                        }
+                        .progress-bar {
+                            width: 100%;
+                            height: 6px;
+                            background-color: #e9ecef;
+                            border-radius: 3px;
+                            margin-top: 20px;
+                            overflow: hidden;
+                        }
+                        .progress {
+                            height: 100%;
+                            width: 100%;
+                            background-color: #28a745;
+                            animation: countdown 2s linear forwards;
+                        }
+                        @keyframes countdown {
+                            from { width: 100%; }
+                            to { width: 0%; }
+                        }
+                        .wave-logo {
+                            max-width: 80px;
+                            margin-bottom: 20px;
+                        }
+                    </style>
+                </head>
                 <body>
-                    <h3>Paiement confirmé!</h3>
-                    <p>Fermeture de la fenêtre...</p>
+                    <div class="payment-container">
+                        <div class="success-icon">✅</div>
+                        <img src="https://wave.com/assets/logo-wave.png" alt="Wave" class="wave-logo">
+                        <h2>Paiement confirmé!</h2>
+                        <p>Votre transaction a été traitée avec succès.</p>
+                        ${transaction ? `
+                            <div class="reference">
+                                Référence: ${transaction.reference}
+                            </div>
+                        ` : ''}
+                        <p>Cette fenêtre se fermera automatiquement dans 2 secondes...</p>
+                        <div class="progress-bar">
+                            <div class="progress"></div>
+                        </div>
+                    </div>
+                    
                     <script>
+                        // Envoi d'un message à la fenêtre parent
                         window.opener && window.opener.postMessage({
                             status: 'success', 
                             provider: 'wave',
                             reference: '${transaction ? transaction.reference : ''}'
                         }, '*');
+                        
+                        // Fermeture automatique après 2 secondes
                         setTimeout(() => window.close(), 2000);
                     </script>
                 </body>
@@ -386,17 +476,200 @@ exports.errorWave = async (req, res) => {
         // Support pour les transactions GIE directes
         if (req.query.transactionId) {
             const transaction = await transactionModel.findOne({ 
-                reference: req.query.transactionId 
+                reference: req.query.token 
             });
             
             if (transaction) {
                 transaction.status = 'CANCELED';
                 await transaction.save();
-                return res.send("<script>window.close();</script>");
+                return res.send(`
+                    <!DOCTYPE html>
+                    <html lang="fr">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Paiement Wave Annulé</title>
+                        <style>
+                            body {
+                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                background-color: #f8f9fa;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                height: 100vh;
+                                margin: 0;
+                                color: #333;
+                                text-align: center;
+                                padding: 20px;
+                            }
+                            .payment-container {
+                                background-color: white;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                                padding: 30px;
+                                max-width: 400px;
+                                width: 100%;
+                            }
+                            .error-icon {
+                                color: #dc3545;
+                                font-size: 50px;
+                                margin-bottom: 20px;
+                            }
+                            .reference {
+                                background-color: #f1f1f1;
+                                padding: 10px;
+                                border-radius: 5px;
+                                font-family: monospace;
+                                margin: 20px 0;
+                            }
+                            h2 {
+                                color: #dc3545;
+                                margin-top: 0;
+                            }
+                            .progress-bar {
+                                width: 100%;
+                                height: 6px;
+                                background-color: #e9ecef;
+                                border-radius: 3px;
+                                margin-top: 20px;
+                                overflow: hidden;
+                            }
+                            .progress {
+                                height: 100%;
+                                width: 100%;
+                                background-color: #dc3545;
+                                animation: countdown 2s linear forwards;
+                            }
+                            @keyframes countdown {
+                                from { width: 100%; }
+                                to { width: 0%; }
+                            }
+                            .wave-logo {
+                                max-width: 80px;
+                                margin-bottom: 20px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="payment-container">
+                            <div class="error-icon">❌</div>
+                            <img src="https://wave.com/assets/logo-wave.png" alt="Wave" class="wave-logo">
+                            <h2>Paiement annulé</h2>
+                            <p>Votre transaction a été annulée.</p>
+                            <div class="reference">
+                                Référence: ${transaction.reference}
+                            </div>
+                            <p>Cette fenêtre se fermera automatiquement dans 2 secondes...</p>
+                            <div class="progress-bar">
+                                <div class="progress"></div>
+                            </div>
+                        </div>
+                        
+                        <script>
+                            // Envoi d'un message à la fenêtre parent
+                            window.opener && window.opener.postMessage({
+                                status: 'cancelled', 
+                                provider: 'wave',
+                                reference: '${transaction.reference}'
+                            }, '*');
+                            
+                            // Fermeture automatique après 2 secondes
+                            setTimeout(() => window.close(), 2000);
+                        </script>
+                    </body>
+                    </html>
+                `);
             }
         }
 
-        return res.send("<script>window.close();</script>");
+        return res.send(`
+            <!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Paiement Wave Annulé</title>
+                <style>
+                    body {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background-color: #f8f9fa;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        margin: 0;
+                        color: #333;
+                        text-align: center;
+                        padding: 20px;
+                    }
+                    .payment-container {
+                        background-color: white;
+                        border-radius: 10px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                        padding: 30px;
+                        max-width: 400px;
+                        width: 100%;
+                    }
+                    .error-icon {
+                        color: #dc3545;
+                        font-size: 50px;
+                        margin-bottom: 20px;
+                    }
+                    h2 {
+                        color: #dc3545;
+                        margin-top: 0;
+                    }
+                    .progress-bar {
+                        width: 100%;
+                        height: 6px;
+                        background-color: #e9ecef;
+                        border-radius: 3px;
+                        margin-top: 20px;
+                        overflow: hidden;
+                    }
+                    .progress {
+                        height: 100%;
+                        width: 100%;
+                        background-color: #dc3545;
+                        animation: countdown 2s linear forwards;
+                    }
+                    @keyframes countdown {
+                        from { width: 100%; }
+                        to { width: 0%; }
+                    }
+                    .wave-logo {
+                        max-width: 80px;
+                        margin-bottom: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="payment-container">
+                    <div class="error-icon">❌</div>
+                    <img src="https://wave.com/assets/logo-wave.png" alt="Wave" class="wave-logo">
+                    <h2>Paiement non complété</h2>
+                    <p>La transaction a été annulée ou n'a pas pu être complétée.</p>
+                    <p>Cette fenêtre se fermera automatiquement dans 2 secondes...</p>
+                    <div class="progress-bar">
+                        <div class="progress"></div>
+                    </div>
+                </div>
+                
+                <script>
+                    // Envoi d'un message à la fenêtre parent
+                    window.opener && window.opener.postMessage({
+                        status: 'cancelled', 
+                        provider: 'wave'
+                    }, '*');
+                    
+                    // Fermeture automatique après 2 secondes
+                    setTimeout(() => window.close(), 2000);
+                </script>
+            </body>
+            </html>
+        `);
         
     } catch (error) {
         return message.reponse(res, message.error, 400, error);
@@ -625,10 +898,13 @@ exports.confirmPayment = async (req, res) => {
 async function activateGIEAfterPayment(gieId) {
     try {
         const gie = await GIE.findById(gieId);
+
+        console.log(`🔄 Activation GIE après paiement: ${gie}`);
         if (gie) {
             gie.statut = 'actif';
             gie.dateActivation = new Date();
-            gie.activePar = 'SYSTEME_PAIEMENT';
+            gie.statutAdhesion = 'validee';
+            gie.statutEnregistrement = 'valide';
             
             await gie.save();
             console.log(`✅ GIE activé automatiquement après paiement: ${gieId}`);

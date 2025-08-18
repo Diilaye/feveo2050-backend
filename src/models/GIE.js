@@ -62,7 +62,7 @@ const gieSchema = new mongoose.Schema({
     required: true,
     match: /^\d{3}$/
   },
-  
+
   // Présidente
   presidenteNom: {
     type: String,
@@ -92,7 +92,7 @@ const gieSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  
+
   // Localisation
   region: {
     type: String,
@@ -131,10 +131,10 @@ const gieSchema = new mongoose.Schema({
     required: true,
     match: /^\d{2}$/
   },
-  
+
   // Membres
   membres: [membreSchema],
-  
+
   // Activités
   secteurPrincipal: {
     type: String,
@@ -149,7 +149,7 @@ const gieSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  
+
   // Dates importantes
   dateConstitution: {
     type: Date,
@@ -159,14 +159,14 @@ const gieSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  
+
   // Statut
   statutAdhesion: {
     type: String,
     enum: ['en_attente', 'validee', 'rejetee', 'suspendue'],
     default: 'en_attente'
   },
-  
+
   // Documents générés
   documentsGeneres: {
     statuts: {
@@ -194,6 +194,12 @@ const gieSchema = new mongoose.Schema({
     default: 'en_attente_paiement'
   },
 
+  daysInvestedSuccess: {
+    type: Number,
+    default: 0
+  },
+
+
   // Code de connexion temporaire pour authentification
   codeConnexionTemporaire: {
     code: {
@@ -216,7 +222,7 @@ gieSchema.index({ region: 1, departement: 1 });
 gieSchema.index({ numeroProtocole: 1 });
 
 // Statistiques publiques : nombre de membres par genre sur tous les GIE
-gieSchema.statics.getStatsPubliques = async function() {
+gieSchema.statics.getStatsPubliques = async function () {
   // Récupère tous les GIEs avec leurs membres
   const gies = await this.find({}, { membres: 1 }).lean();
   let femmes = 0;
@@ -235,42 +241,42 @@ gieSchema.statics.getStatsPubliques = async function() {
 };
 
 // Validation personnalisée pour la composition des membres
-gieSchema.pre('save', function(next) {
+gieSchema.pre('save', function (next) {
   const totalMembres = this.membres.length + 1; // +1 pour la présidente
-  
+
   // Vérifier le nombre minimum de membres (3 minimum)
   if (totalMembres < 3) {
     return next(new Error('Le GIE doit avoir au minimum 3 membres (incluant la présidente)'));
   }
-  
+
   // Vérifier les rôles obligatoires dans les membres
   const secretaire = this.membres.find(m => m.fonction === 'Secrétaire');
   const tresoriere = this.membres.find(m => m.fonction === 'Trésorière');
-  
+
   if (!secretaire) {
     return next(new Error('Le GIE doit avoir une Secrétaire parmi ses membres'));
   }
-  
+
   if (!tresoriere) {
     return next(new Error('Le GIE doit avoir une Trésorière parmi ses membres'));
   }
-  
+
   // Si plus de 3 membres, vérifier les règles FEVEO 2050 pour la composition de genre
   if (totalMembres > 3) {
     // Compter la composition par genre
     const femmes = this.membres.filter(m => m.genre === 'femme').length + 1; // +1 présidente
     const jeunes = this.membres.filter(m => m.genre === 'jeune').length;
     const hommes = this.membres.filter(m => m.genre === 'homme').length;
-    
+
     // Vérifier les règles FEVEO 2050
     const option1Valid = femmes === totalMembres; // 100% femmes
     const option2Valid = femmes >= Math.ceil(totalMembres * 0.625) && jeunes >= Math.ceil(totalMembres * 0.3) && hommes <= Math.floor(totalMembres * 0.075); // Composition mixte proportionnelle
-    
+
     if (!option1Valid && !option2Valid) {
       return next(new Error('Composition des membres non conforme aux règles FEVEO 2050: soit 100% femmes, soit minimum 62.5% femmes, 30% jeunes et maximum 7.5% hommes'));
     }
   }
-  
+
   next();
 });
 
