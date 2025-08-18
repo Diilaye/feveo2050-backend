@@ -18,12 +18,12 @@ const gieRoutes = require('./src/routes/gie');
 const adhesionRoutes = require('./src/routes/adhesions');
 const investissementRoutes = require('./src/routes/investissements');
 const walletRoutes = require('./src/routes/wallet');
-const paiementRoutes = require('./src/routes/paiements');
-const paymentRoutes = require('./src/routes/payments');
+//const paiementRoutes = require('./src/routes/paiements');
+//const paymentRoutes = require('./src/routes/payments');
 const twilioTestRoutes = require('./src/routes/twilio-test');
 const whatsappTestRoutes = require('./src/routes/whatsapp-test');
 const messagingTestRoutes = require('./src/routes/messaging-test');
-//const transactionsRoutes = require('./src/routes/transactions');
+const transactionsRoutes = require('./src/routes/transactions');
 
 
 const app = express();
@@ -103,8 +103,8 @@ app.use('/api/gie', gieRoutes);
 app.use('/api/adhesions', adhesionRoutes);
 app.use('/api/investissements', investissementRoutes);
 app.use('/api/wallet', walletRoutes);
-app.use('/api/paiements', paiementRoutes);
-//app.use('/api/transactions', transactionsRoutes);
+//app.use('/api/paiements', paiementRoutes);
+app.use('/api/transactions', transactionsRoutes);
 app.use('/api/twilio', twilioTestRoutes);
 app.use('/api/whatsapp', whatsappTestRoutes);
 app.use('/api/messaging', messagingTestRoutes);

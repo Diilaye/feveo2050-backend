@@ -229,9 +229,6 @@ router.post('/verify-gie',  async (req, res) => {
 
 // Route pour créer un paiement avec choix du provider
 router.post('/create-payment', 
-  injectPaymentConfig,
-  validatePaymentConfig,
-  getOrangeMoneyToken,
   async (req, res) => {
     try {
       const { gieCode, method = 'WAVE' } = req.body;

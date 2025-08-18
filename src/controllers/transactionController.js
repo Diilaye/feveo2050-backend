@@ -135,8 +135,8 @@ exports.store = async (req, res, next) => {
         } = req.body;
 
         // Validation des champs requis
-        if (!amount || !method) {
-            return message.reponse(res, 'Montant et méthode de paiement requis', 400, null);
+        if (!amount ) {
+            return message.reponse(res, 'Montant  de paiement requis', 400, null);
         }
 
         // Validation du type d'opération
@@ -144,11 +144,6 @@ exports.store = async (req, res, next) => {
             return message.reponse(res, 'Type d\'opération invalide', 400, null);
         }
         
-        // Validation de la méthode de paiement
-        if (!['WAVE', 'OM', 'VIREMENT', 'ESPECES'].includes(method)) {
-            return message.reponse(res, 'Méthode de paiement non supportée', 400, null);
-        }
-
         const id = orderid.generate();
         
         const transaction = new transactionModel();
@@ -184,11 +179,38 @@ exports.store = async (req, res, next) => {
 
         const saveTransaction = await transaction.save();
 
-        // Générer les liens de paiement en fonction de la méthode choisie
-        const paymentLinks = await generatePaymentLink(
-            saveTransaction, 
-            req.body.callbackUrl || `https://${req.get('host')}/payment`
-        );
+        const paymentConfig  = {
+                method: 'post',
+                maxBodyLength: Infinity,
+                url: 'https://api.wave.com/v1/checkout/sessions',
+                headers: { 
+                  'Authorization': 'Bearer ' + (process.env.WAVE_API_TOKEN || ''),
+                  'Content-Type': 'application/json'
+                },
+                data : JSON.stringify({
+                  "amount": req.body.amount,
+                  "currency": "XOF",
+                  "error_url": "https://api.feveo2050.sn/api/transactions/error-wave?token=" + saveTransaction.id,
+                  "success_url": "https://api.feveo2050.sn/api/transactions/success-wave?token=" + saveTransaction.id
+                })
+              };
+          console.log('🔧 Configuration de paiement injectée dans la requête');
+        
+          axios.request(paymentConfig)
+            .then((response) => {
+              req.urlWave = response.data['wave_launch_url'];
+              console.log(JSON.stringify(response.data));
+              next();
+            })
+            .catch((error) => {
+              console.error('❌ Erreur lors de l\'injection de la configuration de paiement:', error.message);
+              res.json({
+                message: 'unauthorized authentication required',
+                statusCode: 401,
+                data: error,
+                status: 'NOT OK'
+              });
+            });
 
         // Récupérer la transaction complète avec les liens de paiement
         const findTransaction = await transactionModel.findById(saveTransaction.id)
@@ -196,9 +218,8 @@ exports.store = async (req, res, next) => {
             .exec();
 
         return message.reponse(res, message.createObject('Transaction'), 201, {
-            url: req.url,
+            url: req.urlWave,
             transaction: findTransaction,
-            paymentLinks: paymentLinks
         });
        
     } catch (error) {
@@ -293,115 +314,22 @@ exports.delete = (req, res, next) => transactionModel.findByIdAndDelete(req.para
         statusCode: 404,
         data: error,
         status: 'NOT OK'
-    }));
+}));
 
-// Callbacks Orange Money
-exports.successOrange = async (req, res, next) => {
-    try {
-        let transaction = null;
-        let redirectUrl = process.env.FRONTEND_URL || 'https://feveo.org';
-        
-        // Vérifier la signature de Orange Money (en production)
-        const isValidCallback = validateOMCallback(req);
-        
-        if (!isValidCallback) {
-            console.warn("⚠️ Signature Orange Money invalide:", req.body);
-            return res.status(403).json({ status: 'error', message: 'Signature invalide' });
-        }
-        
-        // Identifier la transaction par son ID ou référence
-        if (req.query.transactionId || req.body.transactionId) {
-            const transactionId = req.query.transactionId || req.body.transactionId;
-            transaction = await transactionModel.findOne({ reference: transactionId });
-        } 
-        else if (req.query.token || req.body.token) {
-            const token = req.query.token || req.body.token;
-            transaction = await transactionModel.findOne({ token });
-        }
-        
-        // Si transaction trouvée, la mettre à jour
-        if (transaction) {
-            // Enregistrer les détails de la réponse OM
-            const paymentDetails = {
-                provider: 'ORANGE_MONEY',
-                providerId: req.body.paymentId || req.query.paymentId,
-                customerPhone: req.body.customerPhone || req.query.customerPhone,
-                timestamp: new Date(),
-                rawResponse: req.body
-            };
-            
-            transaction.status = 'SUCCESS';
-            transaction.paymentStatus = 'PAID';
-            
-            if (!transaction.paymentInfo) transaction.paymentInfo = {};
-            transaction.paymentInfo.confirmation = paymentDetails;
-            
-            await transaction.save();
-            
-            // Activer le GIE si applicable
-            if (transaction.gieId) {
-                await activateGIEAfterPayment(transaction.gieId);
-            }
-            
-            // Configurer URL de redirection avec paramètres
-            redirectUrl = `${redirectUrl}/payment/success?ref=${transaction.reference}&token=${transaction.token}`;
-        } else {
-            redirectUrl = `${redirectUrl}/payment/error?message=transaction_not_found`;
-        }
-        
-        // API callback: renvoyer JSON
-        if (req.headers['accept'] === 'application/json') {
-            return res.json({
-                status: transaction ? 'success' : 'error',
-                message: transaction ? 'Paiement confirmé' : 'Transaction non trouvée',
-                data: transaction ? {
-                    reference: transaction.reference,
-                    status: transaction.status
-                } : null
-            });
-        }
-        
-        // Redirection frontend ou fermeture de fenêtre selon le contexte
-        if (req.query.redirect === 'true') {
-            return res.redirect(redirectUrl);
-        } else {
-            return res.send(`
-                <html>
-                <head><title>Paiement Orange Money Confirmé</title></head>
-                <body>
-                    <h3>Paiement confirmé!</h3>
-                    <p>Fermeture de la fenêtre...</p>
-                    <script>
-                        window.opener && window.opener.postMessage({
-                            status: 'success', 
-                            provider: 'orange_money',
-                            reference: '${transaction ? transaction.reference : ''}'
-                        }, '*');
-                        setTimeout(() => window.close(), 2000);
-                    </script>
-                </body>
-                </html>
-            `);
-        }
-    } catch (error) {
-        console.error("❌ Erreur callback Orange Money:", error);
-        return message.reponse(res, message.error, 400, error);
-    }
-}
 
 exports.successWave = async (req, res) => {
     try {
         let transaction = null;
-        let redirectUrl = process.env.FRONTEND_URL || 'https://feveo.org';
+        let redirectUrl = process.env.FRONTEND_URL || 'https://feveo2050.sn';
         
         // Vérifier la signature Wave (en production)
-        const isValidCallback = validateWaveCallback(req);
+       // const isValidCallback = validateWaveCallback(req);
         
-        if (!isValidCallback && process.env.NODE_ENV === 'production') {
+       /* if (!isValidCallback && process.env.NODE_ENV === 'production') {
             console.warn("⚠️ Signature Wave invalide:", req.body);
             return res.status(403).json({ status: 'error', message: 'Signature invalide' });
-        }
-        
+        } */
+
         // Identifier la transaction par son ID ou référence
         if (req.query.transactionId || req.body.transactionId) {
             const transactionId = req.query.transactionId || req.body.transactionId;
@@ -482,28 +410,6 @@ exports.successWave = async (req, res) => {
     }
 }
 
-// Callbacks d'erreur Orange Money
-exports.errorOrange = async (req, res) => {
-    try {
-        // Support pour les transactions GIE directes
-        if (req.query.transactionId) {
-            const transaction = await transactionModel.findOne({ 
-                reference: req.query.transactionId 
-            });
-            
-            if (transaction) {
-                transaction.status = 'CANCELED';
-                await transaction.save();
-                return res.send("<script>window.close();</script>");
-            }
-        }
-
-        return res.send("<script>window.close();</script>");
-        
-    } catch (error) {
-        return message.reponse(res, message.error, 400, error);
-    }
-}
 
 exports.errorWave = async (req, res) => {
     try {
