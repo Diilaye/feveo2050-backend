@@ -21,7 +21,6 @@ const auth = require('../middleware/auth');
 // Route de création de transaction avec middlewares de paiement
 router.post('/', 
   validatePaiement, 
-  injectPaymentConfig, 
   transactionController.store
 );
 
