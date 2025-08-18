@@ -179,49 +179,16 @@ exports.store = async (req, res, next) => {
 
         const saveTransaction = await transaction.save();
 
-        const paymentConfig  = {
-                method: 'post',
-                maxBodyLength: Infinity,
-                url: 'https://api.wave.com/v1/checkout/sessions',
-                headers: { 
-                  'Authorization': 'Bearer ' + (process.env.WAVE_API_TOKEN || ''),
-                  'Content-Type': 'application/json'
-                },
-                data : JSON.stringify({
-                  "amount": req.body.amount,
-                  "currency": "XOF",
-                  "error_url": "https://api.feveo2050.sn/api/transactions/error-wave?token=" + saveTransaction.id,
-                  "success_url": "https://api.feveo2050.sn/api/transactions/success-wave?token=" + saveTransaction.id
-                })
-              };
-          console.log('🔧 Configuration de paiement injectée dans la requête');
         
-          axios.request(paymentConfig)
-            .then((response) => {
-              req.urlWave = response.data['wave_launch_url'];
-              console.log(JSON.stringify(response.data));
-              next();
-            })
-            .catch((error) => {
-              console.error('❌ Erreur lors de l\'injection de la configuration de paiement:', error.message);
-              res.json({
-                message: 'unauthorized authentication required',
-                statusCode: 401,
-                data: error,
-                status: 'NOT OK'
-              });
-            });
-
         // Récupérer la transaction complète avec les liens de paiement
         const findTransaction = await transactionModel.findById(saveTransaction.id)
             .populate(populateObject)
             .exec();
 
-        return message.reponse(res, message.createObject('Transaction'), 201, {
-            url: req.urlWave,
-            transaction: findTransaction,
-        });
-       
+            req.transaction = findTransaction;
+
+      next();
+
     } catch (error) {
         console.error("Erreur création transaction:", error);
         return message.reponse(res, message.error, 400, error);
@@ -321,7 +288,10 @@ exports.successWave = async (req, res) => {
     try {
         let transaction = null;
         let redirectUrl = process.env.FRONTEND_URL || 'https://feveo2050.sn';
-        
+
+        console.log('req.query vers:', req.query);
+        console.log('req.body vers:', req.body);
+
         // Vérifier la signature Wave (en production)
        // const isValidCallback = validateWaveCallback(req);
         
