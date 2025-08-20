@@ -562,16 +562,15 @@ const getNextProtocol = async (req, res) => {
 
     // Chercher le GIE avec le plus grand numeroProtocole pour cette zone
     console.log('Recherche du dernier GIE pour la zone:', { codeRegion, codeDepartement, codeArrondissement, codeCommune });
-    const dernierGIE = await GIE.find({
-     // codeRegion: codeRegion,
-      //codeDepartement: codeDepartement,
-      //codeArrondissement: codeArrondissement,
-      //codeCommune: codeCommune
-    })
-      //.sort({ numeroProtocole: -1 })
-      //.select('numeroProtocole');
+    const dernierGIE = await GIE.findOne({
+      codeRegion: codeRegion,
+      codeDepartement: codeDepartement,
+      codeArrondissement: codeArrondissement,
+      codeCommune: codeCommune
+    }).sort({ numeroProtocole: -1 })
+      .select('numeroProtocole');
 
-      console.log('Dernier GIE trouvé:', dernierGIE);
+      console.log('Dernier GIE trouvé:', dernierGIE.length);
 
       for (let index = 0; index < dernierGIE.length; index++) {
         const element = dernierGIE[index];
