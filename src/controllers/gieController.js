@@ -41,7 +41,9 @@ const messagingService = require('../services/messagingService');
 const createGIE = async (req, res) => {
   try {
     const gieData = req.body;
-    
+
+    console.log('Données GIE reçues:', gieData);
+
     // Validation personnalisée des membres avant la création
     const membres = gieData.membres || [];
     const totalMembres = membres.length + 1; // +1 pour la présidente
@@ -118,20 +120,20 @@ const createGIE = async (req, res) => {
     const extractGeographicCodes = (gieData) => {
       // Données géographiques du Sénégal (mapping basique)
       const regionCodes = {
-        'DAKAR': '14',
+        'DAKAR': '01',
         'THIES': '13',
-        'SAINT-LOUIS': '11', 
-        'DIOURBEL': '12',
-        'KAOLACK': '07',
-        'FATICK': '06',
-        'KOLDA': '08',
-        'ZIGUINCHOR': '09',
-        'LOUGA': '10',
-        'MATAM': '15',
-        'KAFFRINE': '16',
-        'KEDOUGOU': '17',
-        'SEDHIOU': '18',
-        'TAMBACOUNDA': '19'
+        'SAINT-LOUIS': '10', 
+        'DIOURBEL': '02',
+        'KAOLACK': '05',
+        'FATICK': '03',
+        'KOLDA': '07',
+        'ZIGUINCHOR': '14',
+        'LOUGA': '08',
+        'MATAM': '09',
+        'KAFFRINE': '04',
+        'KEDOUGOU': '06',
+        'SEDHIOU': '11',
+        'TAMBACOUNDA': '12'
       };
       
       // Mapping basique pour les départements principaux
@@ -189,12 +191,12 @@ const createGIE = async (req, res) => {
     };
     
     // Extraire et assigner les codes géographiques
-    const geoCodes = extractGeographicCodes(gieData);
-    processedGieData.codeRegion = geoCodes.codeRegion;
-    processedGieData.codeDepartement = geoCodes.codeDepartement;
-    processedGieData.codeArrondissement = geoCodes.codeArrondissement;
-    processedGieData.codeCommune = geoCodes.codeCommune;
-    
+   // const geoCodes = extractGeographicCodes(gieData);
+   // processedGieData.codeRegion = gieData.codeRegion;
+   // processedGieData.codeDepartement = gieData.codeDepartement;
+    //processedGieData.codeArrondissement = gieData.codeArrondissement;
+    //processedGieData.codeCommune = gieData.codeCommune;
+
     // Debug: afficher les codes mappés
     console.log('Codes géographiques mappés:', {
       region: processedGieData.region,
@@ -207,7 +209,7 @@ const createGIE = async (req, res) => {
     
 
     // 1. Vérifier le nombre de GIE pour la commune
-    const gieCountForCommune = await GIE.countDocuments({ codeCommune: processedGieData.codeCommune });
+    const gieCountForCommune = await GIE.countDocuments({ codeRegion: processedGieData.codeRegion, codeDepartement: processedGieData.codeDepartement, codeArrondissement: processedGieData.codeArrondissement, codeCommune: processedGieData.codeCommune });
     if (gieCountForCommune >= 50) {
       return res.status(400).json({
         success: false,
@@ -224,7 +226,7 @@ const createGIE = async (req, res) => {
       $or: [
         { identifiantGIE: processedGieData.identifiantGIE },
         { presidenteCIN: processedGieData.presidenteCIN },
-        { numeroProtocole: processedGieData.numeroProtocole, codeCommune: processedGieData.codeCommune }
+        { numeroProtocole: processedGieData.numeroProtocole, codeRegion: processedGieData.codeRegion, codeDepartement: processedGieData.codeDepartement, codeArrondissement: processedGieData.codeArrondissement, codeCommune: processedGieData.codeCommune }
       ]
     });
     if (existingGIE) {
@@ -239,73 +241,12 @@ const createGIE = async (req, res) => {
       ...processedGieData,
       statutEnregistrement: isPublicRegistration ? 'en_attente_paiement' : 'valide'
     });
-    await gie.save();
-
-    // Créer automatiquement l'adhésion avec statut approprié
-    const adhesion = new Adhesion({
-      gieId: gie._id,
-      typeAdhesion: 'standard',
-      montantAdhesion: 50000, // Montant d'adhésion FEVEO 2050
-      validation: {
-        statut: isPublicRegistration ? 'en_attente' : 'en_cours',
-        dateValidation: isPublicRegistration ? null : new Date()
-      },
-      paiement: {
-        statut: isPublicRegistration ? 'en_attente' : 'en_cours',
-        montantPaye: isPublicRegistration ? null : 50000
-      }
-    });
-    await adhesion.save();
-
-    // Créer le cycle d'investissement seulement si le GIE est validé
-    let cycleInvestissement = null;
-    if (!isPublicRegistration) {
-      cycleInvestissement = new CycleInvestissement({
-        gieId: gie._id
-      });
-      cycleInvestissement.genererCalendrier();
-      await cycleInvestissement.save();
-    }
-
-    // Envoi de la notification de création via messaging
-    try {
-      if (gie.presidenteTelephone) {
-        console.log(`Envoi notification création GIE à ${gie.presidenteTelephone}`);
-        const messagingResult = await messagingService.envoyerNotificationCreationGIE(
-          gie.presidenteTelephone,
-          gie.nomGIE,
-          gie.identifiantGIE
-        );
-        
-        console.log('Résultat envoi notification:', messagingResult);
-      }
-    } catch (messagingError) {
-      console.error('Erreur envoi notification création GIE:', messagingError.message);
-      // Ne pas bloquer la création du GIE en cas d'échec d'envoi du message
-    }
-
-    const responseData = {
-      gie,
-      adhesion,
-      message: isPublicRegistration 
-        ? 'GIE enregistré avec succès. En attente de validation de paiement.'
-        : 'GIE créé avec succès'
-    };
-
-    // Ajouter les informations de cycle d'investissement si créé
-    if (cycleInvestissement) {
-      responseData.cycleInvestissement = {
-        id: cycleInvestissement._id,
-        dateDebut: cycleInvestissement.dateDebut,
-        dateFin: cycleInvestissement.dateFin,
-        dureeJours: cycleInvestissement.dureeJours
-      };
-    }
+  const newGIE = await gie.save();
 
     res.status(201).json({
       success: true,
-      message: responseData.message,
-      data: responseData
+      message: 'success creation',
+      data: newGIE
     });
   } catch (error) {
     res.status(500).json({
@@ -602,22 +543,48 @@ const getGIEStats = async (req, res) => {
   }
 };
 
-// @desc    Générer le prochain numéro de protocole
+// @desc    Générer le prochain numéro de protocole pour une zone géographique
 // @route   GET /api/gie/next-protocol
 // @access  Private
 const getNextProtocol = async (req, res) => {
   try {
-    // Trouver le dernier protocole
-    const dernierGIE = await GIE.findOne()
-      .sort({ numeroProtocole: -1 })
-      .select('numeroProtocole');
+    // Récupérer les codes depuis la query ou params
+    const { codeRegion, codeDepartement, codeArrondissement, codeCommune } = req.query;
+    console.log('Codes géographiques:', { codeRegion, codeDepartement, codeArrondissement, codeCommune });
+
+
+    if (!codeRegion || !codeDepartement || !codeArrondissement || !codeCommune) {
+      return res.status(400).json({
+        success: false,
+        message: 'Les codes région, département, arrondissement et commune sont requis.'
+      });
+    }
+
+    // Chercher le GIE avec le plus grand numeroProtocole pour cette zone
+    console.log('Recherche du dernier GIE pour la zone:', { codeRegion, codeDepartement, codeArrondissement, codeCommune });
+    const dernierGIE = await GIE.find({
+     // codeRegion: codeRegion,
+      //codeDepartement: codeDepartement,
+      //codeArrondissement: codeArrondissement,
+      //codeCommune: codeCommune
+    })
+      //.sort({ numeroProtocole: -1 })
+      //.select('numeroProtocole');
+
+      console.log('Dernier GIE trouvé:', dernierGIE);
+
+      for (let index = 0; index < dernierGIE.length; index++) {
+        const element = dernierGIE[index];
+        console.log('GIE actuel:', element.codeRegion);
+      }
 
     let prochainNumero = '001';
-    
     if (dernierGIE && dernierGIE.numeroProtocole) {
       const dernierNumero = parseInt(dernierGIE.numeroProtocole);
       prochainNumero = (dernierNumero + 1).toString().padStart(3, '0');
     }
+
+    console.log('Prochain numéro de protocole:', prochainNumero);
 
     res.json({
       success: true,

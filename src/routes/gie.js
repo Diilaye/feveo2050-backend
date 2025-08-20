@@ -75,7 +75,7 @@ router.get('/en-attente-paiement', auth, requireRole('admin'), getGIEsEnAttenteP
 // @route   GET /api/gie/next-protocol
 // @desc    Générer le prochain numéro de protocole
 // @access  Private
-router.get('/next-protocol', auth, requirePermission('gestion_gie'), getNextProtocol);
+router.get('/next-protocol', getNextProtocol);
 
 // @route   GET /api/gie/:id
 // @desc    Obtenir un GIE par ID

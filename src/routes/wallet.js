@@ -51,101 +51,7 @@ router.post('/verify-gie',  async (req, res) => {
         message: 'Code GIE invalide'
       });
     }
-
-    // Vérifier que le GIE a une adhésion ou la créer si nécessaire
-    const Adhesion = require('../models/Adhesion');
-    let adhesion = await Adhesion.findOne({ 
-      gieId: gie._id
-    });
-
-    if (!adhesion) {
-      // Créer automatiquement une adhésion en attente de paiement pour ce GIE
-      console.log(`📝 Création d'une adhésion automatique pour le GIE ${gieCode}`);
-      
-      adhesion = new Adhesion({
-        gieId: gie._id,
-        statutAdhesion: 'en_attente',
-        statutEnregistrement: 'en_attente_paiement',
-        dateCreation: new Date(),
-        montantAdhesion: 25000,
-        informationsGIE: {
-          nomGIE: gie.nomGIE,
-          identifiantGIE: gie.identifiantGIE,
-          presidenteNom: gie.presidenteNom,
-          presidentePrenom: gie.presidentePrenom,
-          presidenteTelephone: gie.presidenteTelephone
-        },
-        validation: {
-          statut: 'en_attente',
-          dateCreation: new Date(),
-          motif: 'Adhésion créée automatiquement - En attente de paiement'
-        }
-      });
-      
-      try {
-        await adhesion.save();
-        console.log(`✅ Adhésion créée automatiquement pour ${gieCode}`);
-      } catch (saveError) {
-        console.error('❌ Erreur création adhésion:', saveError);
-        return res.status(500).json({
-          success: false,
-          message: 'Erreur lors de la création de l\'adhésion automatique',
-          details: saveError.message
-        });
-      }
-    }
-
-    // Vérifier le statut de l'adhésion et de l'enregistrement
-    const statutAdhesion = adhesion.statutAdhesion || 'en_attente';
-    const statutEnregistrement = adhesion.statutEnregistrement || 'en_attente_paiement';
-    const statutValidation = adhesion.validation?.statut || 'en_attente';
-    
-    console.log(`📊 Statuts pour ${gieCode}:`, {
-      statutAdhesion,
-      statutEnregistrement, 
-      statutValidation,
-      hasAdhesion: !!adhesion
-    });
-    
-    // Déterminer si le GIE est pleinement activé
-    const isFullyActivated = statutValidation === 'validee' && statutAdhesion === 'validee';
-    
-    // Créer le lien de paiement si nécessaire (mais ne pas bloquer l'accès au dashboard)
-    let paymentInfo = null;
-    if (!isFullyActivated && 
-        (statutAdhesion === 'en_attente' || statutAdhesion === 'aucune') && 
-        (statutEnregistrement === 'en_attente_paiement' || statutValidation === 'en_attente')) {
-      
-      console.log(`🔄 GIE ${gieCode} en attente de paiement - génération du lien (optionnel)`);
-      
-      try {
-        // Utiliser la nouvelle route de création de paiement
-        const paymentData = {
-          gieCode: gieCode,
-          method: 'WAVE' // Par défaut Wave, peut être configuré
-        };
-
-        // Créer le paiement via notre système (essayer d'abord avec middleware)
-        let paymentResult = await createGiePaymentWithMiddleware(gie, adhesion, paymentData);
-        
-        // Si le middleware échoue, essayer l'approche directe
-        if (!paymentResult.success) {
-          console.log('🔄 Tentative avec l\'approche directe...');
-          paymentResult = await createGiePayment(gie, adhesion, paymentData);
-        }
-
-        if (paymentResult.success) {
-          paymentInfo = paymentResult.payment;
-          console.log(`💳 Lien de paiement généré: ${paymentInfo.paymentUrl}`);
-        } else {
-          console.log(`⚠️ Erreur génération paiement: ${paymentResult.message}`);
-        }
-
-      } catch (paymentError) {
-        console.error('❌ Erreur génération lien paiement:', paymentError);
-        // Ne pas bloquer l'accès, juste loguer l'erreur
-      }
-    }
+   
 
     // Permettre l'accès au dashboard pour tous les GIE valides, même non activés
     console.log(`🚀 Accès au dashboard autorisé pour ${gieCode} - génération du code WhatsApp`);
@@ -189,11 +95,12 @@ router.post('/verify-gie',  async (req, res) => {
             code: gie.identifiantGIE,
             nom: gie.nomGIE,
             presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`,
-            statut: isFullyActivated ? 'active' : 'en_attente_paiement',
-            isActivated: isFullyActivated
+            statut: 'en_attente_paiement',
+            statutEnregistrement : gie.statutEnregistrement,
+            isActivated: 'isFullyActivated'
           },
-          paymentInfo: paymentInfo, // Informations de paiement si disponibles
-          requiresPayment: !isFullyActivated && !!paymentInfo,
+          paymentInfo: 'paymentInfo', // Informations de paiement si disponibles
+          requiresPayment: true,
           canAccessDashboard: true // Toujours true maintenant
         }
       });
@@ -210,11 +117,12 @@ router.post('/verify-gie',  async (req, res) => {
             code: gie.identifiantGIE,
             nom: gie.nomGIE,
             presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`,
-            statut: isFullyActivated ? 'active' : 'en_attente_paiement',
-            isActivated: isFullyActivated
+            statut:  'en_attente_paiement',
+            statutEnregistrement : gie.statutEnregistrement,
+            isActivated: 'isFullyActivated'
           },
-          paymentInfo: paymentInfo,
-          requiresPayment: !isFullyActivated && !!paymentInfo,
+          paymentInfo: 'paymentInfo',
+          requiresPayment: true,
           canAccessDashboard: true
         }
       });

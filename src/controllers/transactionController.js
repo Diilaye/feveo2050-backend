@@ -286,12 +286,6 @@ exports.successWave = async (req, res) => {
         let transaction = null;
         let redirectUrl = process.env.FRONTEND_URL || 'https://feveo2050.sn';
 
-        console.log('req.query vers:', req.query);
-        console.log('req.body vers:', req.body);
-        console.log('req.headers vers:', req.headers);
-        console.log('req.params vers:', req.params);
-        console.log('req.transaction vers:', req.transaction);
-
         // Vérifier la signature Wave (en production)
        // const isValidCallback = validateWaveCallback(req);
         
@@ -327,12 +321,23 @@ exports.successWave = async (req, res) => {
             if (!transaction.paymentInfo) transaction.paymentInfo = {};
             transaction.paymentInfo.confirmation = paymentDetails;
             
+            console.log('Transaction mise à jour:', transaction);
             
             // Activer le GIE si applicable
-            if (transaction.gieId && transaction.operationType === 'ADHESION') {
+            if (transaction.operationType === 'ADHESION') {
                 await activateGIEAfterPayment(transaction.gieId);
             } else {
-                transaction.daysInvestedSuccess += transaction.daysInvestedSuccess || 0; // Ajouter les jours investis
+
+                const gie = await GIE.findById(transaction.gieId);
+
+                console.log('GIE trouvé:', gie);
+
+                if (gie) {
+                    gie.daysInvestedSuccess += transaction.daysInvested; // Ajouter les jours investis
+                  const d=   await gie.save();
+
+                  console.log('GIE mis à jour:', d);
+                }
             }
 
             await transaction.save();
@@ -341,7 +346,7 @@ exports.successWave = async (req, res) => {
             // Configurer URL de redirection avec paramètres
             redirectUrl = `${redirectUrl}/payment/success?ref=${transaction.reference}&token=${transaction.token}`;
         } else {
-            redirectUrl = `${redirectUrl}/payment/error?message=transaction_not_found`;
+           redirectUrl = `${redirectUrl}/payment/error?message=transaction_not_found`;
         }
         
         // API callback: renvoyer JSON
@@ -357,7 +362,7 @@ exports.successWave = async (req, res) => {
         }
         
         // Redirection frontend ou fermeture de fenêtre selon le contexte
-        if (req.query.redirect === 'true') {
+       /* if (req.query.redirect === 'true') {
             return res.redirect(redirectUrl);
         } else {
             return res.send(`
@@ -448,19 +453,52 @@ exports.successWave = async (req, res) => {
                     
                     <script>
                         // Envoi d'un message à la fenêtre parent
-                        window.opener && window.opener.postMessage({
-                            status: 'success', 
-                            provider: 'wave',
-                            reference: '${transaction ? transaction.reference : ''}'
-                        }, '*');
+                        if (window.opener) {
+                            try {
+                                window.opener.postMessage({
+                                    status: 'success', 
+                                    provider: 'wave',
+                                    reference: '${transaction ? transaction.reference : ''}'
+                                }, '*');
+                            } catch (e) {
+                                console.error('Erreur lors de l\'envoi du message:', e);
+                            }
+                        }
                         
-                        // Fermeture automatique après 2 secondes
-                        setTimeout(() => window.close(), 2000);
+                        // Plusieurs tentatives de fermeture pour maximiser les chances
+                        try {
+                            // Fermeture automatique après 2 secondes
+                            setTimeout(() => {
+                                try {
+                                    window.close();
+                                } catch (e) { 
+                                    console.log('Première tentative de fermeture échouée');
+                                }
+                                
+                                // Deuxième tentative avec un délai supplémentaire
+                                setTimeout(() => {
+                                    try {
+                                        window.self.close();
+                                    } catch (e) {
+                                        console.log('Deuxième tentative de fermeture échouée');
+                                        // Afficher un message explicite si la fermeture automatique échoue
+                                        document.body.insertAdjacentHTML('beforeend', 
+                                            '<div style="position:fixed;bottom:10px;width:100%;text-align:center;">' +
+                                            '<button onclick="window.close()" style="padding:8px 16px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;">' +
+                                            'Fermer cette fenêtre</button></div>');
+                                    }
+                                }, 1000);
+                            }, 2000);
+                        } catch (e) {
+                            console.error('Erreur lors de la fermeture de la fenêtre:', e);
+                        }
                     </script>
                 </body>
                 </html>
             `);
-        }
+        }*/
+            return res.redirect(redirectUrl);
+
     } catch (error) {
         console.error("❌ Erreur callback Wave:", error);
         return message.reponse(res, message.error, 400, error);
@@ -565,14 +603,45 @@ exports.errorWave = async (req, res) => {
                         
                         <script>
                             // Envoi d'un message à la fenêtre parent
-                            window.opener && window.opener.postMessage({
-                                status: 'cancelled', 
-                                provider: 'wave',
-                                reference: '${transaction.reference}'
-                            }, '*');
+                            if (window.opener) {
+                                try {
+                                    window.opener.postMessage({
+                                        status: 'cancelled', 
+                                        provider: 'wave',
+                                        reference: '${transaction.reference}'
+                                    }, '*');
+                                } catch (e) {
+                                    console.error('Erreur lors de l\'envoi du message:', e);
+                                }
+                            }
                             
-                            // Fermeture automatique après 2 secondes
-                            setTimeout(() => window.close(), 2000);
+                            // Plusieurs tentatives de fermeture pour maximiser les chances
+                            try {
+                                // Fermeture automatique après 2 secondes
+                                setTimeout(() => {
+                                    try {
+                                        window.close();
+                                    } catch (e) { 
+                                        console.log('Première tentative de fermeture échouée');
+                                    }
+                                    
+                                    // Deuxième tentative avec un délai supplémentaire
+                                    setTimeout(() => {
+                                        try {
+                                            window.self.close();
+                                        } catch (e) {
+                                            console.log('Deuxième tentative de fermeture échouée');
+                                            // Afficher un message explicite si la fermeture automatique échoue
+                                            document.body.insertAdjacentHTML('beforeend', 
+                                                '<div style="position:fixed;bottom:10px;width:100%;text-align:center;">' +
+                                                '<button onclick="window.close()" style="padding:8px 16px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;">' +
+                                                'Fermer cette fenêtre</button></div>');
+                                        }
+                                    }, 1000);
+                                }, 2000);
+                            } catch (e) {
+                                console.error('Erreur lors de la fermeture de la fenêtre:', e);
+                            }
                         </script>
                     </body>
                     </html>
@@ -656,13 +725,44 @@ exports.errorWave = async (req, res) => {
                 
                 <script>
                     // Envoi d'un message à la fenêtre parent
-                    window.opener && window.opener.postMessage({
-                        status: 'cancelled', 
-                        provider: 'wave'
-                    }, '*');
+                    if (window.opener) {
+                        try {
+                            window.opener.postMessage({
+                                status: 'cancelled', 
+                                provider: 'wave'
+                            }, '*');
+                        } catch (e) {
+                            console.error('Erreur lors de l\'envoi du message:', e);
+                        }
+                    }
                     
-                    // Fermeture automatique après 2 secondes
-                    setTimeout(() => window.close(), 2000);
+                    // Plusieurs tentatives de fermeture pour maximiser les chances
+                    try {
+                        // Fermeture automatique après 2 secondes
+                        setTimeout(() => {
+                            try {
+                                window.close();
+                            } catch (e) { 
+                                console.log('Première tentative de fermeture échouée');
+                            }
+                            
+                            // Deuxième tentative avec un délai supplémentaire
+                            setTimeout(() => {
+                                try {
+                                    window.self.close();
+                                } catch (e) {
+                                    console.log('Deuxième tentative de fermeture échouée');
+                                    // Afficher un message explicite si la fermeture automatique échoue
+                                    document.body.insertAdjacentHTML('beforeend', 
+                                        '<div style="position:fixed;bottom:10px;width:100%;text-align:center;">' +
+                                        '<button onclick="window.close()" style="padding:8px 16px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;">' +
+                                        'Fermer cette fenêtre</button></div>');
+                                }
+                            }, 1000);
+                        }, 2000);
+                    } catch (e) {
+                        console.error('Erreur lors de la fermeture de la fenêtre:', e);
+                    }
                 </script>
             </body>
             </html>
@@ -896,7 +996,6 @@ async function activateGIEAfterPayment(gieId) {
     try {
         const gie = await GIE.findById(gieId);
 
-        console.log(`🔄 Activation GIE après paiement: ${gie}`);
         if (gie) {
             gie.statut = 'actif';
             gie.dateActivation = new Date();
