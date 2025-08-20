@@ -95,7 +95,7 @@ router.post('/verify-gie',  async (req, res) => {
             code: gie.identifiantGIE,
             nom: gie.nomGIE,
             presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`,
-            statut: 'en_attente_paiement',
+            statut:  gie.statutAdhesion,
             statutEnregistrement : gie.statutEnregistrement,
             isActivated: 'isFullyActivated'
           },
@@ -117,7 +117,7 @@ router.post('/verify-gie',  async (req, res) => {
             code: gie.identifiantGIE,
             nom: gie.nomGIE,
             presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`,
-            statut:  'en_attente_paiement',
+            statut:  gie.statutAdhesion,
             statutEnregistrement : gie.statutEnregistrement,
             isActivated: 'isFullyActivated'
           },
