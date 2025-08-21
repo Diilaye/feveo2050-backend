@@ -13,7 +13,7 @@ const {
 const auth = require('../middleware/auth');
 
 // Routes CRUD standard avec authentification
-//router.get('/', auth, transactionController.all);
+router.get('/', transactionController.all);
 //router.get('/:id', auth, transactionController.one);
 //router.put('/:id', auth, transactionController.update);
 //router.delete('/:id', auth, transactionController.delete);

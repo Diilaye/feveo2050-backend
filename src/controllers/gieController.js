@@ -1005,6 +1005,8 @@ const getGIEsEnAttentePaiement = async (req, res) => {
 const validateGieByIdentifiant = async (req, res) => {
   try {
     const { identifiant } = req.params;
+
+    console.log('🔍 Validation du GIE par identifiant:', identifiant);
     
     if (!identifiant) {
       return res.status(400).json({
