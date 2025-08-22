@@ -1509,33 +1509,38 @@ router.get('/members/:gieCode', async (req, res) => {
       });
     }
 
-    // Vérifier l'accès (adhésion)
-    const Adhesion = require('../models/Adhesion');
-    const adhesion = await Adhesion.findOne({ gieId: gie._id });
-    
-    if (!adhesion) {
-      return res.status(404).json({
-        success: false,
-        message: 'Adhésion non trouvée'
-      });
-    }
-
     // Récupérer les membres (si le champ existe dans le modèle GIE)
     const membres = gie.membres || [];
+    
+    // Créer un objet membre pour la présidente
+    const presidente = {
+      nom: gie.presidenteNom,
+      prenom: gie.presidentePrenom,
+      fonction: 'Présidente',
+      telephone: gie.presidenteTelephone,
+      email: gie.presidenteEmail || null,
+      cin: gie.presidenteCIN || null,
+      adresse: gie.presidenteAdresse || null,
+      isPresidente: true,
+      dateAjout: gie.dateCreation || new Date()
+    };
+    
+    // Ajouter la présidente en tête de liste
+    const membresAvecPresidente = [presidente, ...membres];
 
     res.json({
       success: true,
-      message: `${membres.length} membre(s) trouvé(s)`,
+      message: `${membresAvecPresidente.length} membre(s) trouvé(s) (incluant la présidente)`,
       data: {
         gieInfo: {
           code: gie.identifiantGIE,
           nom: gie.nomGIE,
           presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`
         },
-        membres: membres,
-        totalMembres: membres.length,
+        membres: membresAvecPresidente,
+        totalMembres: membresAvecPresidente.length,
         limiteMaximum: 40,
-        peutAjouter: membres.length < 40
+        peutAjouter: membres.length < 40 // Attention: la présidente ne compte pas dans la limite de 40
       }
     });
 
@@ -1554,7 +1559,20 @@ router.post('/members/:gieCode/add', async (req, res) => {
   
   try {
     const { gieCode } = req.params;
-    const { nom, prenom, telephone, fonction = 'Membre', genre = null, cin = null } = req.body;
+    const { 
+      nom, 
+      prenom, 
+      telephone, 
+      fonction = 'Membre', 
+      genre = null, 
+      cin = null,
+      age = null,
+      email = null,
+      dateNaissance = null,
+      profession = null,
+      adresse = null,
+      role = null  // Compatibilité avec le frontend qui pourrait utiliser 'role' au lieu de 'fonction'
+    } = req.body;
 
     console.log(`📝 Début traitement pour GIE ${gieCode}`);
 
@@ -1583,7 +1601,7 @@ router.post('/members/:gieCode/add', async (req, res) => {
     console.log(`✅ GIE trouvé: ${gie.nomGIE}, membres actuels: ${gie.membres?.length || 0}`);
 
     // Vérifier l'accès avec timeout
-    console.log('🔍 Recherche adhésion...');
+   /* console.log('🔍 Recherche adhésion...');
     const Adhesion = require('../models/Adhesion');
     const adhesion = await Adhesion.findOne({ gieId: gie._id }).maxTimeMS(5000);
     
@@ -1596,7 +1614,7 @@ router.post('/members/:gieCode/add', async (req, res) => {
     }
 
     console.log(`✅ Adhésion trouvée, statut: ${adhesion.statutAdhesion}`);
-
+*/
     // Vérifications métier
     if (!gie.membres) {
       gie.membres = [];
@@ -1620,14 +1638,32 @@ router.post('/members/:gieCode/add', async (req, res) => {
       });
     }
 
+    // Validation du CIN si fourni
+    if (cin) {
+      const cinExiste = gie.membres.some(membre => membre.cin === cin);
+      if (cinExiste) {
+        console.log('❌ CIN déjà utilisé');
+        return res.status(400).json({
+          success: false,
+          message: 'Ce numéro de CIN est déjà utilisé par un autre membre'
+        });
+      }
+    }
+
     // Créer le nouveau membre
     const nouveauMembre = {
       nom: nom.trim(),
       prenom: prenom.trim(),
-      fonction: fonction || 'Membre',
+      fonction: fonction || role || 'Membre',
       cin: cin || null,
       telephone: telephone.trim(),
-      genre: genre || null
+      genre: genre || null,
+      age: age || null,
+      email: email ? email.trim().toLowerCase() : null,
+      dateNaissance: dateNaissance || null,
+      profession: profession ? profession.trim() : null,
+      adresse: adresse ? adresse.trim() : null,
+      dateAjout: new Date()
     };
 
     console.log('📝 Nouveau membre créé:', nouveauMembre);
@@ -1682,15 +1718,15 @@ router.put('/members/:gieCode/:membreId', async (req, res) => {
     }
 
     // Vérifier l'accès
-    const Adhesion = require('../models/Adhesion');
-    const adhesion = await Adhesion.findOne({ gieId: gie._id });
+  //  const Adhesion = require('../models/Adhesion');
+   // const adhesion = await Adhesion.findOne({ gieId: gie._id });
     
-    if (!adhesion) {
-      return res.status(404).json({
-        success: false,
-        message: 'Adhésion non trouvée'
-      });
-    }
+   // if (!adhesion) {
+     // return res.status(404).json({
+       // success: false,
+     //   message: 'Adhésion non trouvée'
+     // });
+    //}
 
     // Trouver le membre à modifier (compatible avec _id MongoDB)
     const membreIndex = gie.membres.findIndex(membre => 
@@ -1772,16 +1808,7 @@ router.delete('/members/:gieCode/:membreId', async (req, res) => {
       });
     }
 
-    // Vérifier l'accès
-    const Adhesion = require('../models/Adhesion');
-    const adhesion = await Adhesion.findOne({ gieId: gie._id });
-    
-    if (!adhesion) {
-      return res.status(404).json({
-        success: false,
-        message: 'Adhésion non trouvée'
-      });
-    }
+  
 
     // Trouver et supprimer le membre (compatible avec _id MongoDB)
     const membreIndex = gie.membres.findIndex(membre => 
@@ -2308,5 +2335,145 @@ async function validateAndActivateGie(gieCode, forceActivation = false) {
     throw error;
   }
 }
+
+// Route pour récupérer les informations sur les documents d'un GIE
+router.get('/documents/:gieCode', async (req, res) => {
+  try {
+    const { gieCode } = req.params;
+
+    // Vérifier le GIE
+    const gie = await GIE.findOne({ identifiantGIE: gieCode });
+    if (!gie) {
+      return res.status(404).json({
+        success: false,
+        message: 'Code GIE invalide'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Documents du GIE récupérés avec succès',
+      data: {
+        gieInfo: {
+          code: gie.identifiantGIE,
+          nom: gie.nomGIE,
+          presidente: `${gie.presidentePrenom} ${gie.presidenteNom}`
+        },
+        documentsGeneres: gie.documentsGeneres || {
+          statuts: false,
+          reglementInterieur: false,
+          procesVerbal: false,
+          demandeAdhesion: false
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération documents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des documents'
+    });
+  }
+});
+
+// Route pour télécharger un document spécifique
+router.get('/documents/:gieCode/:documentType', async (req, res) => {
+  try {
+    const { gieCode, documentType } = req.params;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Vérifier le GIE
+    const gie = await GIE.findOne({ identifiantGIE: gieCode });
+    if (!gie) {
+      return res.status(404).json({
+        success: false,
+        message: 'Code GIE invalide'
+      });
+    }
+
+    // Vérifier si le type de document est valide
+    const documentTypes = ['statuts', 'reglementInterieur', 'procesVerbal', 'demandeAdhesion'];
+    if (!documentTypes.includes(documentType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type de document invalide'
+      });
+    }
+
+    // Vérifier si le document est disponible
+    if (gie.documentsGeneres && !gie.documentsGeneres[documentType]) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document non disponible'
+      });
+    }
+
+    // Chemin vers le document (à adapter selon votre structure de fichiers)
+    // Dans un environnement de production, ces documents seraient stockés dans S3, GCS, etc.
+    const docsDir = path.join(__dirname, '../../uploads/documents');
+    
+    // En développement, on peut générer un PDF de test si le fichier n'existe pas
+    let filePath = path.join(docsDir, `${documentType}_${gieCode}.pdf`);
+    
+    // Si le répertoire n'existe pas, le créer
+    if (!fs.existsSync(docsDir)) {
+      fs.mkdirSync(docsDir, { recursive: true });
+    }
+    
+    // Si le fichier n'existe pas, générer un document de test
+    if (!fs.existsSync(filePath)) {
+      // Ici, on pourrait utiliser une bibliothèque comme PDFKit pour générer un vrai PDF
+      // Pour ce prototype, on renvoie simplement un fichier texte en format PDF
+      console.log(`⚠️ Document ${documentType} pour ${gieCode} non trouvé, génération d'un document de test`);
+      
+      // Nom du document selon le type
+      let documentName = '';
+      switch (documentType) {
+        case 'statuts':
+          documentName = 'Statuts du GIE';
+          break;
+        case 'reglementInterieur':
+          documentName = 'Règlement Intérieur';
+          break;
+        case 'procesVerbal':
+          documentName = 'Procès Verbal';
+          break;
+        case 'demandeAdhesion':
+          documentName = 'Demande d\'Adhésion';
+          break;
+      }
+      
+      // Contenu du document (simulé)
+      const documentContent = `
+Document : ${documentName}
+GIE : ${gie.nomGIE} (${gieCode})
+Présidente : ${gie.presidentePrenom} ${gie.presidenteNom}
+Date de génération : ${new Date().toLocaleDateString()}
+
+Ce document est généré automatiquement par le système FEVEO 2050.
+Il s'agit d'une version de test à des fins de démonstration.
+
+En environnement de production, ce document serait un PDF officiel signé et validé.
+      `;
+      
+      fs.writeFileSync(filePath, documentContent);
+    }
+
+    // Envoyer le fichier
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${documentType}_${gieCode}.pdf`);
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+  } catch (error) {
+    console.error(`❌ Erreur téléchargement document:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors du téléchargement du document'
+    });
+  }
+});
 
 module.exports = router;
