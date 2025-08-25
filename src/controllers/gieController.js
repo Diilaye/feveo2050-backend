@@ -1,35 +1,4 @@
-// @desc    Obtenir le prochain numeroProtocole pour une commune
-// @route   GET /api/gie/next-protocol/:codeCommune
-// @access  Public
-const getNextProtocolForCommune = async (req, res) => {
-  try {
-    const { codeCommune } = req.params;
-    if (!codeCommune) {
-      return res.status(400).json({
-        success: false,
-        message: 'Code commune requis'
-      });
-    }
-    const gieCount = await GIE.countDocuments({ codeCommune });
-    if (gieCount >= 50) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cette commune a déjà atteint la limite de 50 GIE.'
-      });
-    }
-    const nextNumero = (gieCount + 1).toString().padStart(3, '0');
-    res.json({
-      success: true,
-      data: { nextNumeroProtocole: nextNumero }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la génération du numéro de protocole',
-      error: error.message
-    });
-  }
-};
+
 const GIE = require('../models/GIE');
 const Adhesion = require('../models/Adhesion');
 const CycleInvestissement = require('../models/CycleInvestissement');
@@ -548,11 +517,7 @@ const getGIEStats = async (req, res) => {
 // @access  Private
 const getNextProtocol = async (req, res) => {
   try {
-    // Récupérer les codes depuis la query ou params
     const { codeRegion, codeDepartement, codeArrondissement, codeCommune } = req.query;
-    console.log('Codes géographiques:', { codeRegion, codeDepartement, codeArrondissement, codeCommune });
-
-
     if (!codeRegion || !codeDepartement || !codeArrondissement || !codeCommune) {
       return res.status(400).json({
         success: false,
@@ -560,41 +525,45 @@ const getNextProtocol = async (req, res) => {
       });
     }
 
-    // Chercher le GIE avec le plus grand numeroProtocole pour cette zone
-    console.log('Recherche du dernier GIE pour la zone:', { codeRegion, codeDepartement, codeArrondissement, codeCommune });
-    const dernierGIE = await GIE.find({
-      codeRegion: codeRegion,
-      codeDepartement: codeDepartement,
-      codeArrondissement: codeArrondissement,
-      codeCommune: codeCommune
-    })
-    //.sort({ numeroProtocole: -1 })
-      .select('numeroProtocole');
+    // Filtre exact (on garde les codes comme des chaînes : "01", "10", etc.)
+    const filter = {
+      codeRegion: String(codeRegion),
+      codeDepartement: String(codeDepartement),
+      codeArrondissement: String(codeArrondissement),
+      codeCommune: String(codeCommune),
+    };
 
-    let prochainNumero = '001';
+    // Récupère tous les numéros déjà utilisés pour cette zone
+    const existants = await GIE.find(filter).distinct('numeroProtocole');
 
+    // Convertit "001" -> 1, "010" -> 10 et garde 1..50
+    const used = new Set(
+      existants
+        .map(v => String(v))
+        .map(s => s.replace(/^0+/, '') || '0')
+        .map(s => parseInt(s, 10))
+        .filter(n => Number.isInteger(n) && n >= 1 && n <= 50)
+    );
 
-    if(dernierGIE) {
-         if(dernierGIE.length > 9) {
-          prochainNumero = '0'+(dernierGIE.length + 1).toString();
-        }else {
-          prochainNumero = '00'+ (dernierGIE.length + 1).toString();
-        }
+    // Cherche le plus petit numéro libre
+    let n = 1;
+    while (n <= 50 && used.has(n)) n++;
 
+    if (n > 50) {
+      return res.status(409).json({
+        success: false,
+        message: 'Cette zone a déjà atteint la limite de 50 GIE.'
+      });
     }
-      
-    
 
-    console.log('Prochain numéro de protocole:', prochainNumero);
+    const prochainNumero = String(n).padStart(3, '0'); // 1->"001", 9->"009", 10->"010"
 
-    res.json({
+    return res.json({
       success: true,
-      data: {
-        prochainProtocole: prochainNumero
-      }
+      data: { prochainProtocole: prochainNumero }
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erreur lors de la génération du numéro de protocole',
       error: error.message
@@ -1084,7 +1053,6 @@ module.exports = {
   deleteGIE,
   getGIEStats,
   getNextProtocol,
-  getNextProtocolForCommune,
   envoyerCodeConnexionGIE,
   verifierCodeConnexionGIE,
   getStatsPubliques,

@@ -14,9 +14,10 @@ const connectDB = require('./src/config/database');
 
 // Import des routes
 const authRoutes = require('./src/routes/auth');
+const adminAuthRoutes = require('./src/routes/adminAuth');
 const gieRoutes = require('./src/routes/gie');
 const adhesionRoutes = require('./src/routes/adhesions');
-const investissementRoutes = require('./src/routes/investissements');
+//const investissementRoutes = require('./src/routes/investissements');
 const walletRoutes = require('./src/routes/wallet');
 //const paiementRoutes = require('./src/routes/paiements');
 //const paymentRoutes = require('./src/routes/payments');
@@ -24,6 +25,8 @@ const twilioTestRoutes = require('./src/routes/twilio-test');
 const whatsappTestRoutes = require('./src/routes/whatsapp-test');
 const messagingTestRoutes = require('./src/routes/messaging-test');
 const transactionsRoutes = require('./src/routes/transactions');
+const adminRoutes = require('./src/routes/admin');
+
 
 
 const app = express();
@@ -99,9 +102,11 @@ app.get('/health', (req, res) => {
 
 // Routes API
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminAuthRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/gie', gieRoutes);
 app.use('/api/adhesions', adhesionRoutes);
-app.use('/api/investissements', investissementRoutes);
+//app.use('/api/investissements', investissementRoutes);
 app.use('/api/wallet', walletRoutes);
 //app.use('/api/paiements', paiementRoutes);
 app.use('/api/transactions', transactionsRoutes);

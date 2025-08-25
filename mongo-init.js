@@ -1,22 +1,17 @@
 // Script d'initialisation MongoDB pour Docker
 // Ce script s'exécute automatiquement lors du premier démarrage du conteneur MongoDB
+// Pour exécuter manuellement:
+// - Avec Docker: ./docker-init-mongodb.sh
+// - Avec mongosh: mongosh --quiet localhost:27017/feveo2050 mongo-init.js
 
-const { MongoClient } = require('mongodb');
-require('dotenv').config();
+try {
+  print('🚀 Initialisation de la base de données FEVEO 2050...');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/feveo2050?authSource=admin';
-
- console.log('🚀 Connexion à MongoDB...');
-    await client.connect();
-    
-    const db = client.db('feveo2050');
-
-console.log('🚀 Initialisation de la base de données FEVEO 2050...');
-
-// Créer la base de données feveo2050
-db = db.getSiblingDB('feveo2050');
-
-const client = new MongoClient(MONGODB_URI);
+  // Créer la base de données feveo2050
+  db = db.getSiblingDB('feveo2050');
+} catch (error) {
+  print('❌ Erreur lors de l\'initialisation: ' + error);
+}
 
 
 
@@ -38,23 +33,104 @@ db.createCollection('gies');
 db.createCollection('adhesions');
 db.createCollection('cycleinvestissements');
 
-console.log('✅ Base de données FEVEO 2050 initialisée avec succès!');
+print('✅ Base de données FEVEO 2050 initialisée avec succès!');
 
-// Insérer quelques données de test si on est en développement
-if (process.env.NODE_ENV !== 'production') {
-  console.log('🔧 Insertion des données de test...');
+// Insérer des données d'initialisation
+print('🔧 Insertion des données d\'initialisation...');
 
-  // Insérer un utilisateur admin de test
-  db.utilisateurs.insertOne({
+// Insérer des utilisateurs administrateurs
+print('🔑 Création des utilisateurs administrateurs...');
+
+// Fonction pour obtenir un hash bcrypt pour un mot de passe
+// Les hashes ont été pré-générés avec le script generate-password-hashes.js
+function generatePasswordHash(password) {
+  // Retourner les hashes pré-générés en fonction du mot de passe
+  if (password === 'password123') {
+    return '$2b$10$BREVN/H55DSnXVzijJlOAOfCoC.Ue3H.i/YzFV6IgGLUkGQ5h4lne';
+  } 
+  else if (password === 'superadmin@2050!') {
+    return '$2b$10$ythB4GP/KVT.apLUbV98KOsjmEaQCc86V6MteFwHyMRKeJ8Mz3O1q';
+  }
+  // Fallback hash pour d'autres mots de passe
+  return '$2b$10$BREVN/H55DSnXVzijJlOAOfCoC.Ue3H.i/YzFV6IgGLUkGQ5h4lne'; // hash de 'password123'
+}
+
+// Liste des administrateurs à créer
+const adminUsers = [
+  {
+    nom: 'Diagne',
+    prenom: 'Amadou',
+    email: 'admin@feveo2050.sn',
+    telephone: '771234567',
+    motDePasse: generatePasswordHash('password123'),
+    role: 'admin',
+    permissions: ['all'],
+    actif: true
+  },
+  {
+    nom: 'Diallo',
+    prenom: 'Mariama',
+    email: 'mariama.diallo@feveo2050.com',
+    telephone: '772345678',
+    motDePasse: generatePasswordHash('password123'),
+    role: 'admin',
+    permissions: ['users', 'gies', 'finance'],
+    actif: true
+  },
+  {
+    nom: 'Sow',
+    prenom: 'Moussa',
+    email: 'moussa.sow@feveo2050.com',
+    telephone: '773456789',
+    motDePasse: generatePasswordHash('password123'),
+    role: 'admin',
+    permissions: ['gies', 'support'],
+    actif: true
+  },
+  {
     nom: 'Admin',
     prenom: 'Test',
     email: 'admin@test.com',
-    motDePasse: '$2b$12$example.hash.here',
+    telephone: '770000000',
+    motDePasse: generatePasswordHash('password123'),
     role: 'admin',
     permissions: ['all'],
+    actif: true
+  }
+];
+
+// Ajouter les utilisateurs administrateurs
+adminUsers.forEach(user => {
+  // Vérifier si l'utilisateur existe déjà
+  const existingUser = db.utilisateurs.findOne({ email: user.email });
+  if (existingUser) {
+    print(`👤 L'utilisateur ${user.prenom} ${user.nom} (${user.email}) existe déjà.`);
+  } else {
+    user.createdAt = new Date();
+    user.updatedAt = new Date();
+    db.utilisateurs.insertOne(user);
+    print(`✅ Utilisateur administrateur créé: ${user.prenom} ${user.nom} (${user.email})`);
+  }
+});
+
+// Créer un super admin si nécessaire
+const superAdminEmail = "super@feveo2050.sn";
+const existingSuperAdmin = db.utilisateurs.findOne({ email: superAdminEmail });
+if (!existingSuperAdmin) {
+  const superAdmin = {
+    nom: 'Super',
+    prenom: 'Admin',
+    email: superAdminEmail,
+    telephone: '779999999',
+    motDePasse: generatePasswordHash('superadmin@2050!'),
+    role: 'superadmin',
+    permissions: ['all', 'system'],
+    actif: true,
     createdAt: new Date(),
     updatedAt: new Date()
-  });
-  
-  console.log('✅ Données de test insérées!');
+  };
+  db.utilisateurs.insertOne(superAdmin);
+  print(`🔐 Super Admin créé: ${superAdmin.email}`);
 }
+
+print('✅ Données d\'initialisation insérées!');

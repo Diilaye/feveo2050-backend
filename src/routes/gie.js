@@ -16,8 +16,6 @@ const {
   getGIEsEnAttentePaiement,
   validateGieByIdentifiant
 } = require('../controllers/gieController');
-// Obtenir le prochain numeroProtocole pour une commune
-router.get('/next-protocol/:codeCommune', getNextProtocolForCommune);
 const {
   validateGIE
 } = require('../middleware/validation');
