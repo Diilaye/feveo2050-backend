@@ -4,7 +4,11 @@ const Utilisateur = require('../models/Utilisateur');
 // Middleware d'authentification
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Extraction du token depuis le header Authorization
+    const authHeader = req.header('Authorization');
+    const token = authHeader && authHeader.startsWith('Bearer ') 
+      ? authHeader.substring(7) 
+      : null;
     
     if (!token) {
       return res.status(401).json({
@@ -13,36 +17,53 @@ const auth = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const utilisateur = await Utilisateur.findById(decoded.id).select('-motDePasse');
-    
-    if (!utilisateur) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token invalide. Utilisateur non trouvé.'
-      });
-    }
+    try {
+      // Vérification du token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Récupération de l'utilisateur sans le mot de passe
+      const utilisateur = await Utilisateur.findById(decoded.id).select('-motDePasse');
+      
+      if (!utilisateur) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token invalide. Utilisateur non trouvé.'
+        });
+      }
 
-    if (utilisateur.statut !== 'actif') {
-      return res.status(401).json({
-        success: false,
-        message: 'Compte inactif ou suspendu.'
-      });
-    }
+      if (utilisateur.statut !== 'actif') {
+        return res.status(403).json({  // 403 Forbidden pour un utilisateur existant mais inactif
+          success: false,
+          message: 'Compte inactif ou suspendu.'
+        });
+      }
 
-    req.utilisateur = utilisateur;
-    next();
+      req.utilisateur = utilisateur;
+      next();
+    } catch (jwtError) {
+      // Gestion spécifique des erreurs JWT
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expiré.'
+        });
+      } else if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token malformé ou invalide.'
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Erreur de validation du token.'
+        });
+      }
+    }
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expiré.'
-      });
-    }
-    
-    res.status(401).json({
+    console.error('Erreur d\'authentification:', error);
+    return res.status(500).json({
       success: false,
-      message: 'Token invalide.'
+      message: 'Erreur interne du serveur lors de l\'authentification.'
     });
   }
 };

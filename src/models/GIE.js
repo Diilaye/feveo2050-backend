@@ -150,12 +150,8 @@ const gieSchema = new mongoose.Schema({
     trim: true
   },
 
-  // Dates importantes
-  dateConstitution: {
-    type: Date,
-    default: Date.now
-  },
-  dateCreation: {
+    // Date de dernière mise à jour
+  updatedAt: {
     type: Date,
     default: Date.now
   },
@@ -211,6 +207,11 @@ const gieSchema = new mongoose.Schema({
     numeroTelephone: {
       type: String
     }
+  },
+
+  daysInvestedSuccess: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
