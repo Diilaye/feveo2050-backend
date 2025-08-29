@@ -432,6 +432,8 @@ router.get('/gies', adminAuth, async (req, res) => {
 // @route   GET /api/admin/gies/:id
 // @desc    Récupérer les détails d'un GIE
 // @access  Admin only
+const { getLocationDetails } = require('../utils/geoData');
+
 router.get('/gies/:id', adminAuth, async (req, res) => {
   try {
     const gie = await GIE.findById(req.params.id);
@@ -443,11 +445,32 @@ router.get('/gies/:id', adminAuth, async (req, res) => {
       });
     }
     
+    // Obtenir les détails des entités administratives à partir des codes
+    const gieData = gie.toObject();
+    const detailsGeographiques = getLocationDetails(
+      gie.codeRegion,
+      gie.codeDepartement,
+      gie.codeArrondissement,
+      gie.codeCommune
+    );
+    
+    // Ajouter les noms complets aux données du GIE
+    gieData.detailsGeographiques = {
+      nomRegion: detailsGeographiques.region || gie.region,
+      nomDepartement: detailsGeographiques.departement || gie.departement,
+      // Ne pas afficher les codes si les noms ne sont pas trouvés
+      nomArrondissement: detailsGeographiques.arrondissement || '',
+      nomCommune: detailsGeographiques.commune || ''
+    };
+
+    console.log('Détails géographiques ajoutés aux données du GIE:', gieData.detailsGeographiques);
+
     res.json({
       success: true,
-      data: gie
+      data: gieData
     });
   } catch (error) {
+    console.error('Erreur détaillée:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des détails du GIE',
