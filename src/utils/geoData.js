@@ -2105,6 +2105,105 @@ const SENEGAL_GEOGRAPHIC_DATA = {
 };
 
 /**
+ * @typedef {Object} Commune
+ * @property {string} code
+ * @property {string} nom
+ */
+
+/**
+ * @typedef {Object} Arrondissement
+ * @property {string} nom
+ * @property {string} code
+ * @property {Commune[]} communes
+ */
+
+/**
+ * @typedef {Object} Departement
+ * @property {string} nom
+ * @property {string} code
+ * @property {Arrondissement[]} arrondissements
+ */
+
+/**
+ * @typedef {Object} Region
+ * @property {string} nom
+ * @property {string} code
+ * @property {Object.<string, Departement>} departements
+ */
+
+/**
+ * @typedef {Object.<string, Region>} SenegalData
+ */
+
+/**
+ * Retourne un tableau de Map (une par département).
+ * @param {SenegalData} data
+ * @param {string|number} codeRegion
+ * @returns {Map[]}
+ */
+function getDepartementsMapsByRegionCodeTS(codeRegion) {
+  const regionCode = String(codeRegion).padStart(2, '0');
+  const regionEntry = Object.values(SENEGAL_GEOGRAPHIC_DATA).find(r => r?.code === regionCode);
+  if (!regionEntry?.departements) return [];
+
+  return Object.entries(regionEntry.departements).map(([deptKey, deptVal]) => {
+    return new Map([
+      ['key', deptKey],
+      ['code', deptVal.code],
+      ['nom', deptVal.nom],
+      ['arrondissements', deptVal.arrondissements ?? []],
+    ]);
+  });
+}
+
+// petit util pour comparer proprement les noms ("Dakar", "DAKAR", "dákàr" -> "DAKAR")
+function normalizeLabel(s) {
+  return String(s)
+    .normalize('NFD')            // sépare les accents
+    .replace(/[\u0300-\u036f]/g, '') // retire les diacritiques
+    .replace(/[\s'-]+/g, '')     // retire espaces/traits d’union/apostrophes
+    .toUpperCase();
+}
+
+
+/**
+ * Retourne un tableau de Map pour chaque département d'une région, en entrant son NOM.
+ * @param {object} data - l’objet des données (SENEGAL_GEOGRAPHIC_DATA)
+ * @param {string} nomRegion - nom de la région (ex: "Dakar", "Diourbel")
+ * @returns {Map<string, any>[]} - tableau de Map (une par département)
+ */
+function getDepartementsMapsByRegionName(nomRegion) {
+  if (!nomRegion) return [];
+  const target = normalizeLabel(nomRegion);
+
+  // On autorise 2 façons de trouver la région :
+  // 1) par "r.nom" (libellé humain)
+  // 2) par la clé brute (DAKAR, DIOURBEL, ...), au cas où l'appelant passe déjà la clé
+  let regionEntry = null;
+
+  for (const [regionKey, regionVal] of Object.entries(SENEGAL_GEOGRAPHIC_DATA)) {
+    const matchByLabel = normalizeLabel(regionVal?.nom) === target;
+    const matchByKey   = normalizeLabel(regionKey) === target;
+    if ((matchByLabel || matchByKey) && regionVal?.departements) {
+      regionEntry = regionVal;
+      break;
+    }
+  }
+
+  if (!regionEntry) return [];
+
+  return Object.entries(regionEntry.departements).map(([deptKey, deptVal]) => {
+    return new Map([
+      ['key', deptKey],                          // ex: "PIKINE"
+      ['code', deptVal.code],                    // ex: "02"
+      ['nom', deptVal.nom],                      // ex: "Pikine"
+      ['arrondissements', deptVal.arrondissements || []],
+    ]);
+  });
+}
+
+
+/**
  * Récupère les informations géographiques détaillées à partir des codes
  * @param {string} codeRegion - Code de la région
  * @param {string} codeDepartement - Code du département
@@ -2204,3 +2303,82 @@ exports.getLocationDetails = function(codeRegion, codeDepartement, codeArrondiss
   }
 };
 
+/**
+ * Retourne la liste de tous les départements du Sénégal sous forme d'un tableau d'objets
+ * Chaque objet contient le code et le nom du département
+ * @returns {Array<{code: string, nom: string, region: string, regionCode: string}>} Liste des départements
+ */
+const getDepartements = () => {
+  const departements = [];
+  
+  // Parcourir toutes les régions et leurs départements
+  Object.entries(SENEGAL_GEOGRAPHIC_DATA).forEach(([regionKey, regionData]) => {
+    // Pour chaque région, parcourir ses départements
+    Object.entries(regionData.departements).forEach(([deptKey, deptData]) => {
+      departements.push({
+        code: deptData.code,
+        nom: deptData.nom,
+        region: regionData.nom,
+        regionCode: regionData.code
+      });
+    });
+  });
+  
+  // Trier les départements par nom
+  departements.sort((a, b) => a.nom.localeCompare(b.nom));
+  
+  return departements;
+};
+
+const getDepartementByCodeRegion = (code) => {
+  const departements = getDepartements();
+  return departements.find(dept => dept.regionCode === code);
+};
+
+/**
+ * Retourne la liste des départements pour une région spécifique
+ * @param {string} regionCode - Code de la région (optionnel)
+ * @returns {Array<{code: string, nom: string, region: string, regionCode: string}>} Liste des départements de la région
+ */
+const getDepartementsByRegion = (regionCode = null) => {
+  const departements = getDepartements();
+
+  console.log('Récupération des départements pour la région:', regionCode);
+
+//  console.log('Liste complète des départements:', departements);
+  
+  if (regionCode) {
+    // Filtrer les départements pour une région spécifique
+    return departements.filter(dept => dept.regionCode === regionCode);
+  } else {
+    // Si aucun code de région n'est fourni, retourner tous les départements groupés par région
+    const departementsByRegion = {};
+    
+    departements.forEach(dept => {
+      const region = dept.regionCode;
+      
+      if (!departementsByRegion[region]) {
+        departementsByRegion[region] = [];
+      }
+      
+      departementsByRegion[region].push({
+        code: dept.code,
+        nom: dept.nom
+      });
+    });
+
+    console.log('Départements groupés par région:', departementsByRegion);
+    
+    return departementsByRegion;
+  }
+};
+
+// Exporter les fonctions et données
+module.exports = {
+  SENEGAL_GEOGRAPHIC_DATA,
+  getDepartementByCodeRegion,
+  getDepartements,
+  getDepartementsByRegion,
+  getDepartementsMapsByRegionCodeTS,
+  getDepartementsMapsByRegionName
+};

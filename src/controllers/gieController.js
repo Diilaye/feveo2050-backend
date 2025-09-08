@@ -516,6 +516,7 @@ const getGIEStats = async (req, res) => {
 // @route   GET /api/gie/next-protocol
 // @access  Private
 const getNextProtocol = async (req, res) => {
+  console.log('Demande de protocole reçue');
   try {
     const { codeRegion, codeDepartement, codeArrondissement, codeCommune } = req.query;
     if (!codeRegion || !codeDepartement || !codeArrondissement || !codeCommune) {
@@ -524,6 +525,8 @@ const getNextProtocol = async (req, res) => {
         message: 'Les codes région, département, arrondissement et commune sont requis.'
       });
     }
+
+    console.log(`Demande de protocole pour la zone: ${codeRegion}-${codeDepartement}-${codeArrondissement}-${codeCommune}`);
 
     // Filtre exact (on garde les codes comme des chaînes : "01", "10", etc.)
     const filter = {
@@ -535,6 +538,8 @@ const getNextProtocol = async (req, res) => {
 
     // Récupère tous les numéros déjà utilisés pour cette zone
     const existants = await GIE.find(filter).distinct('numeroProtocole');
+
+    console.log(`Numéros existants dans la zone: ${existants.join(', ')}`);
 
     // Convertit "001" -> 1, "010" -> 10 et garde 1..50
     const used = new Set(
