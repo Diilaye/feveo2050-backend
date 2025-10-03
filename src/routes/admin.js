@@ -5,6 +5,14 @@ const Utilisateur = require('../models/Utilisateur');
 const GIE = require('../models/GIE');
 //const Investissement = require('../models/Investissement');
 const Transaction = require('../models/Transaction');
+const { 
+  getLocationDetails, 
+  getDepartementByCodeRegion, 
+  getDepartementsMapsByRegionCodeTS, 
+  getDepartementsMapsByRegionName,
+  getDepartementsByRegion,
+  SENEGAL_GEOGRAPHIC_DATA 
+} = require('../utils/geoData');
 
 // @route   GET /api/admin/dashboard
 // @desc    Récupérer les statistiques pour le tableau de bord
@@ -384,11 +392,14 @@ router.get('/gies', adminAuth, async (req, res) => {
 
     let query = {};
 
-    // Si un terme de recherche est fourni, rechercher par téléphone, nom ou prénom de la présidente
+    // Si un terme de recherche est fourni, rechercher par identifiant GIE, téléphone, nom ou prénom de la présidente
     if (search) {
       // On construit une requête pour rechercher dans les formats ancien et nouveau
       query = {
         $or: [
+          // Recherche par identifiant GIE (code GIE)
+          { 'identifiantGIE': { $regex: search, $options: 'i' } },
+          
           // Nouveau format (champs individuels)
           { 'presidenteTelephone': { $regex: search, $options: 'i' } },
           { 'presidenteNom': { $regex: search, $options: 'i' } },
@@ -432,8 +443,6 @@ router.get('/gies', adminAuth, async (req, res) => {
 // @route   GET /api/admin/gies/:id
 // @desc    Récupérer les détails d'un GIE
 // @access  Admin only
-const { getLocationDetails, getDepartementByCodeRegion, getDepartementsMapsByRegionCodeTS, getDepartementsMapsByRegionName , SENEGAL_GEOGRAPHIC_DATA } = require('../utils/geoData');
-
 router.get('/gies/:id', adminAuth, async (req, res) => {
   try {
     const gie = await GIE.findById(req.params.id);
@@ -702,7 +711,6 @@ router.get('/reports/gies-by-region', adminAuth, async (req, res) => {
  * @returns {Object} - Un objet avec les départements regroupés par région
  */
 async function getDepartementsByRegionFromDB(regionFilter = null, filters = {}) {
-  const { getDepartementsByRegion, SENEGAL_GEOGRAPHIC_DATA } = require('../utils/geoData');
   const departementsByRegion = {};
 
   // Initialiser la structure si une région spécifique est demandée

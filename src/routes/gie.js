@@ -7,8 +7,8 @@ const {
   updateGIE,
   deleteGIE,
   getGIEStats,
+  getGIEsParRegion,
   getNextProtocol,
-  getNextProtocolForCommune,
   envoyerCodeConnexionGIE,
   verifierCodeConnexionGIE,
   getStatsPubliques,
@@ -31,6 +31,11 @@ const {
 // @desc    Obtenir les statistiques publiques des GIEs
 // @access  Public
 router.get('/stats-publiques', getStatsPubliques);
+
+// @route   GET /api/gie/par-region
+// @desc    Obtenir les GIEs groupés par région (option ?format=map pour { region: GIE[] })
+// @access  Public
+router.get('/par-region', getGIEsParRegion);
 
 // @route   GET /api/gie/validate/:identifiant
 // @desc    Valider un GIE par son identifiant

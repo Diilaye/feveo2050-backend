@@ -512,6 +512,70 @@ const getGIEStats = async (req, res) => {
   }
 };
 
+// @desc    Obtenir les GIEs groupés par région
+// @route   GET /api/gie/par-region
+// @access  Public
+const getGIEsParRegion = async (req, res) => {
+  try {
+    const { region, format } = req.query;
+
+    const match = {};
+    if (region) match.region = region;
+
+    const pipeline = [
+      { $match: match },
+      {
+        $project: {
+          _id: 1,
+          nomGIE: 1,
+          identifiantGIE: 1,
+          numeroProtocole: 1,
+          region: 1,
+          departement: 1,
+          commune: 1,
+          secteurPrincipal: 1,
+          statutEnregistrement: 1,
+          createdAt: 1,
+          codeRegion: 1,
+          codeDepartement: 1
+        }
+      },
+      {
+        $group: {
+          _id: '$region',
+          count: { $sum: 1 },
+          gies: { $push: '$$ROOT' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          region: '$_id',
+          count: 1,
+          gies: 1
+        }
+      },
+      { $sort: { region: 1 } }
+    ];
+
+    const results = await GIE.aggregate(pipeline);
+
+    if (format === 'map') {
+      const data = {};
+      for (const r of results) data[r.region] = r.gies;
+      return res.json({ success: true, data });
+    }
+
+    return res.json({ success: true, data: results });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'agrégation des GIE par région",
+      error: error.message
+    });
+  }
+};
+
 // @desc    Générer le prochain numéro de protocole pour une zone géographique
 // @route   GET /api/gie/next-protocol
 // @access  Private
@@ -1057,6 +1121,7 @@ module.exports = {
   updateGIE,
   deleteGIE,
   getGIEStats,
+  getGIEsParRegion,
   getNextProtocol,
   envoyerCodeConnexionGIE,
   verifierCodeConnexionGIE,

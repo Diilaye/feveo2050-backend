@@ -4,6 +4,19 @@
 // - Avec Docker: ./docker-init-mongodb.sh
 // - Avec mongosh: mongosh --quiet localhost:27017/feveo2050 mongo-init.js
 
+// Garde: si on exécute ce fichier avec Node.js, afficher un message clair et arrêter
+if (typeof print === 'undefined') {
+  // Environnement Node.js (mongosh définit 'print')
+  // eslint-disable-next-line no-console
+  console.error('Ce script doit être exécuté avec mongosh, pas avec node.\n' +
+    'Exemples:\n' +
+    '  ./docker-init-mongodb.sh\n' +
+    '  mongosh "mongodb://admin:password123@localhost:27017/feveo2050?authSource=admin" mongo-init.js');
+  if (typeof process !== 'undefined' && process.exit) {
+    process.exit(1);
+  }
+}
+
 try {
   print('🚀 Initialisation de la base de données FEVEO 2050...');
 

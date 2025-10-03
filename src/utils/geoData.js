@@ -2211,7 +2211,7 @@ function getDepartementsMapsByRegionName(nomRegion) {
  * @param {string} codeCommune - Code de la commune
  * @returns {Object} - Informations géographiques détaillées
  */
-exports.getLocationDetails = function(codeRegion, codeDepartement, codeArrondissement, codeCommune) {
+function getLocationDetails(codeRegion, codeDepartement, codeArrondissement, codeCommune) {
   try {
     const result = {
       region: null,
@@ -2373,6 +2373,112 @@ const getDepartementsByRegion = (regionCode = null) => {
   }
 };
 
+/**
+ * Récupère le nom d'un arrondissement par ses codes
+ * @param {string} codeRegion - Code de la région
+ * @param {string} codeDepartement - Code du département  
+ * @param {string} codeArrondissement - Code de l'arrondissement
+ * @returns {string|null} Le nom de l'arrondissement ou null si non trouvé
+ */
+const getArrondissement = (codeRegion, codeDepartement, codeArrondissement) => {
+  try {
+    // Parcourir les régions pour trouver celle avec le code correspondant
+    for (const regionKey in SENEGAL_GEOGRAPHIC_DATA) {
+      const region = SENEGAL_GEOGRAPHIC_DATA[regionKey];
+      
+      if (region.code === codeRegion) {
+        // Chercher le département dans cette région
+        for (const departementKey in region.departements) {
+          const departement = region.departements[departementKey];
+          
+          if (departement.code === codeDepartement) {
+            // Chercher l'arrondissement dans ce département
+            const arrondissement = departement.arrondissements.find(arr => arr.code === codeArrondissement);
+            
+            if (arrondissement) {
+              return arrondissement.nom;
+            }
+          }
+        }
+      }
+    }
+    
+    console.warn(`Arrondissement non trouvé: région ${codeRegion}, département ${codeDepartement}, arrondissement ${codeArrondissement}`);
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la recherche de l\'arrondissement:', error);
+    return null;
+  }
+};
+
+/**
+ * Récupère le nom d'une commune par ses codes
+ * @param {string} codeRegion - Code de la région
+ * @param {string} codeDepartement - Code du département
+ * @param {string} codeArrondissement - Code de l'arrondissement
+ * @param {string} codeCommune - Code de la commune
+ * @returns {string|null} Le nom de la commune ou null si non trouvé
+ */
+const getCommune = (codeRegion, codeDepartement, codeArrondissement, codeCommune) => {
+  try {
+    // Parcourir les régions pour trouver celle avec le code correspondant
+    for (const regionKey in SENEGAL_GEOGRAPHIC_DATA) {
+      const region = SENEGAL_GEOGRAPHIC_DATA[regionKey];
+      
+      if (region.code === codeRegion) {
+        // Chercher le département dans cette région
+        for (const departementKey in region.departements) {
+          const departement = region.departements[departementKey];
+          
+          if (departement.code === codeDepartement) {
+            // Chercher l'arrondissement dans ce département
+            const arrondissement = departement.arrondissements.find(arr => arr.code === codeArrondissement);
+            
+            if (arrondissement) {
+              // Chercher la commune dans cet arrondissement
+              const commune = arrondissement.communes.find(comm => comm.code === codeCommune);
+              
+              if (commune) {
+                return commune.nom;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    console.warn(`Commune non trouvée: région ${codeRegion}, département ${codeDepartement}, arrondissement ${codeArrondissement}, commune ${codeCommune}`);
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la recherche de la commune:', error);
+    return null;
+  }
+};
+
+/**
+ * Récupère le nom d'une région par son code
+ * @param {string} codeRegion - Code de la région (ex: "01")
+ * @returns {string|null} Le nom de la région (ex: "DAKAR") ou null si non trouvé
+ */
+const getRegionNameByCode = (codeRegion) => {
+  try {
+    // Parcourir les régions pour trouver celle avec le code correspondant
+    for (const regionKey in SENEGAL_GEOGRAPHIC_DATA) {
+      const region = SENEGAL_GEOGRAPHIC_DATA[regionKey];
+      
+      if (region.code === codeRegion) {
+        return regionKey; // Retourner la clé qui est le nom de la région
+      }
+    }
+    
+    console.warn(`Région non trouvée pour le code: ${codeRegion}`);
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la recherche de la région:', error);
+    return null;
+  }
+};
+
 // Exporter les fonctions et données
 module.exports = {
   SENEGAL_GEOGRAPHIC_DATA,
@@ -2380,5 +2486,9 @@ module.exports = {
   getDepartements,
   getDepartementsByRegion,
   getDepartementsMapsByRegionCodeTS,
-  getDepartementsMapsByRegionName
+  getDepartementsMapsByRegionName,
+  getArrondissement,
+  getCommune,
+  getRegionNameByCode,
+  getLocationDetails
 };

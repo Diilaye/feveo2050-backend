@@ -26,6 +26,7 @@ const whatsappTestRoutes = require('./src/routes/whatsapp-test');
 const messagingTestRoutes = require('./src/routes/messaging-test');
 const transactionsRoutes = require('./src/routes/transactions');
 const adminRoutes = require('./src/routes/admin');
+const rapportRoutes = require('./src/routes/rapport');
 
 
 
@@ -105,6 +106,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gie', gieRoutes);
+app.use('/api/rapports', rapportRoutes);
 app.use('/api/adhesions', adhesionRoutes);
 //app.use('/api/investissements', investissementRoutes);
 app.use('/api/wallet', walletRoutes);
