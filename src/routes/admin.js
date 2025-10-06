@@ -1247,4 +1247,150 @@ router.get('/reports/gies-complete-list', adminAuth, async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/reports/adhesion-evolution-detailed
+// @desc    Récupérer l'évolution des adhésions par mois et années avec statuts actifs/inactifs
+// @access  Admin only
+router.get('/reports/adhesion-evolution-detailed', adminAuth, async (req, res) => {
+  try {
+    // Paramètres optionnels
+    const { type = 'monthly', year, startDate, endDate } = req.query;
+    
+    // Construire le pipeline d'agrégation
+    let pipeline = [];
+    
+    // Filtres de date si spécifiés
+    let matchStage = {};
+    if (year) {
+      const yearInt = parseInt(year);
+      matchStage.createdAt = {
+        $gte: new Date(yearInt, 0, 1),
+        $lt: new Date(yearInt + 1, 0, 1)
+      };
+    } else if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+    
+    // Grouper par période selon le type demandé
+    let groupStage;
+    if (type === 'yearly') {
+      groupStage = {
+        $group: {
+          _id: { year: { $year: '$createdAt' } },
+          total: { $sum: 1 },
+          actifs: {
+            $sum: {
+              $cond: [
+                { $eq: ['$statutAdhesion', 'validee'] },
+                1,
+                0
+              ]
+            }
+          },
+          inactifs: {
+            $sum: {
+              $cond: [
+                { $in: ['$statutAdhesion', ['en_attente', 'rejetee', 'suspendue']] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      };
+    } else {
+      // Type mensuel par défaut
+      groupStage = {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          total: { $sum: 1 },
+          actifs: {
+            $sum: {
+              $cond: [
+                { $eq: ['$statutAdhesion', 'validee'] },
+                1,
+                0
+              ]
+            }
+          },
+          inactifs: {
+            $sum: {
+              $cond: [
+                { $in: ['$statutAdhesion', ['en_attente', 'rejetee', 'suspendue']] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      };
+    }
+    
+    pipeline.push(groupStage);
+    
+    // Trier par date
+    if (type === 'yearly') {
+      pipeline.push({ $sort: { '_id.year': 1 } });
+    } else {
+      pipeline.push({ $sort: { '_id.year': 1, '_id.month': 1 } });
+    }
+    
+    // Exécuter l'agrégation
+    const results = await GIE.aggregate(pipeline);
+    
+    // Formater les résultats
+    const formattedResults = results.map(item => {
+      let period;
+      if (type === 'yearly') {
+        period = `${item._id.year}`;
+      } else {
+        const monthNames = [
+          'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+          'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        ];
+        period = `${monthNames[item._id.month - 1]} ${item._id.year}`;
+      }
+      
+      return {
+        period,
+        total: item.total,
+        actifs: item.actifs,
+        inactifs: item.inactifs,
+        type: type
+      };
+    });
+    
+    console.log(`Récupéré l'évolution des adhésions pour ${formattedResults.length} périodes`);
+    
+    res.json({
+      success: true,
+      data: formattedResults,
+      totalPeriods: formattedResults.length,
+      type: type,
+      filters: {
+        year: year || null,
+        startDate: startDate || null,
+        endDate: endDate || null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'évolution des adhésions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération de l\'évolution des adhésions',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
